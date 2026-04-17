@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}{{ u.nombre }} · Equipo{% endblock %}
+{% block page_title %}
+  <i class="bi bi-person-lines-fill me-2 text-primary"></i>{{ u.nombre }}
+  <small class="text-muted fw-normal fs-6 ms-2">— Pendientes asignados</small>
+{% endblock %}
+{% block topbar_actions %}
+  <a href="/dashboard" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Volver al dashboard
+  </a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Resumen rápido -->
+{% set atrasadas = tareas | selectattr("fecha_limite") | selectattr("fecha_limite", "lt", hoy) | list %}
+{% set por_vencer = tareas | selectattr("fecha_limite") | selectattr("fecha_limite", "ge", hoy) | selectattr("fecha_limite", "le", en_7_dias) | list %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-dark">{{ proyectos | length }}</div>
+          <div class="stat-label">Proyectos activos</div>
+        </div>
+        <div class="stat-icon" style="background:#eff6ff; color:#3b82f6">
+          <i class="bi bi-folder2-open"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-dark">{{ tareas | length }}</div>
+          <div class="stat-label">Total pendientes</div>
+        </div>
+        <div class="stat-icon" style="background:#f0fdf4; color:#16a34a">
+          <i class="bi bi-check2-square"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-danger">{{ atrasadas | length }}</div>
+          <div class="stat-label">Atrasadas</div>
+        </div>
+        <div class="stat-icon" style="background:#fef2f2; color:#dc2626">
+          <i class="bi bi-exclamation-circle"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-warning">{{ por_vencer | length }}</div>
+          <div class="stat-label">Vencen en 7 días</div>
+        </div>
+        <div class="stat-icon" style="background:#fefce8; color:#ca8a04">
+          <i class="bi bi-clock-history"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Tareas pendientes -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header fw-bold text-dark">
+        <i class="bi bi-list-task me-2 text-primary"></i>Tareas Pendientes
+      </div>
+      <div class="card-body p-0">
+        {% if tareas %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th class="ps-3">Actividad</th>
+                <th>Proyecto</th>
+                <th>Vence</th>
+                <th>Estado</th>
+                <th>Prioridad</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for t in tareas %}
+            <tr>
+              <td class="ps-3">
+                <a href="/proyectos/{{ t.proyecto_id }}" class="text-decoration-none text-dark fw-semibold">
+                  {{ t.titulo[:50] }}{% if t.titulo|length > 50 %}…{% endif %}
+                </a>
+                <div class="small text-muted">{{ t.tipo }}</div>
+              </td>
+              <td>
+                <span class="small text-muted">{{ t.proyecto.codigo }}</span><br>
+                <span class="small">{{ t.proyecto.cliente.nombre }}</span>
+              </td>
+              <td>
+                {% if t.fecha_limite %}
+                  {% if t.fecha_limite < hoy %}
+                    <span class="badge badge-atrasado">Atrasada</span>
+                  {% elif t.fecha_limite <= en_7_dias %}
+                    <span class="badge bg-warning text-dark">{{ t.fecha_limite.strftime('%d %b') }}</span>
+                  {% else %}
+                    <span class="small">{{ t.fecha_limite.strftime('%d %b %Y') }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-{{ t.estado | lower | replace(' ', '-') }}">{{ t.estado }}</span>
+              </td>
+              <td>
+                <span class="badge badge-prio-{{ t.prioridad | lower | replace('í','i') }}">{{ t.prioridad }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-check-circle display-6 d-block mb-2 text-success"></i>
+          Sin tareas pendientes asignadas
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Proyectos a cargo -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header fw-bold text-dark">
+        <i class="bi bi-folder2-open me-2 text-primary"></i>Proyectos a cargo
+      </div>
+      <div class="card-body p-0">
+        {% if proyectos %}
+        <ul class="list-group list-group-flush">
+          {% for p in proyectos %}
+          <li class="list-group-item px-3 py-2">
+            <a href="/proyectos/{{ p.id }}" class="text-decoration-none fw-semibold text-dark">
+              {{ p.codigo }}
+            </a>
+            <div class="small text-muted">{{ p.nombre[:50] }}{% if p.nombre|length > 50 %}…{% endif %}</div>
+            <div class="small text-muted">{{ p.cliente.nombre }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center py-4 text-muted small">Sin proyectos activos asignados</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
