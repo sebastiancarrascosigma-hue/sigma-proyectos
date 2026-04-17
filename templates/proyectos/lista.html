@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Proyectos · Sigma Proyectos{% endblock %}
+{% block page_title %}<i class="bi bi-folder2-open me-2 text-primary"></i>Proyectos{% endblock %}
+{% block topbar_actions %}
+  <a href="/proyectos/nuevo" class="btn btn-primary btn-sm fw-semibold">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo Proyecto
+  </a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filtros -->
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <form method="get" action="/proyectos" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">Estado</label>
+        <select name="estado" class="form-select form-select-sm">
+          <option value="">Todos los estados</option>
+          {% for e in estados %}
+          <option value="{{ e }}" {{ 'selected' if filtro_estado == e else '' }}>{{ e }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Tipo</label>
+        <select name="tipo" class="form-select form-select-sm">
+          <option value="">Todos los tipos</option>
+          {% for t in tipos %}
+          <option value="{{ t }}" {{ 'selected' if filtro_tipo == t else '' }}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Cliente</label>
+        <select name="cliente_id" class="form-select form-select-sm">
+          <option value="">Todos los clientes</option>
+          {% for c in clientes %}
+          <option value="{{ c.id }}" {{ 'selected' if filtro_cliente == c.id|string else '' }}>{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm flex-fill">
+          <i class="bi bi-funnel me-1"></i>Filtrar
+        </button>
+        <a href="/proyectos" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Lista -->
+{% if proyectos %}
+<div class="row g-3">
+  {% for p in proyectos %}
+  {% set estado_class = 'activo' if p.estado == 'Activo' else 'en-espera' if p.estado == 'En Espera' else 'completado' if p.estado == 'Completado' else 'cancelado' %}
+
+  <div class="col-12">
+    <a href="/proyectos/{{ p.id }}" class="text-decoration-none">
+      <div class="card" style="transition: box-shadow .18s; border-left: 4px solid {{ '#22c55e' if p.estado == 'Activo' else '#f59e0b' if p.estado == 'En Espera' else '#3b82f6' if p.estado == 'Completado' else '#94a3b8' }}">
+        <div class="card-body py-3 px-4">
+          <div class="row align-items-center">
+            <div class="col-lg-6">
+              <div class="d-flex align-items-start gap-3">
+                <div>
+                  {% if p.id in tareas_atrasadas_ids %}
+                  <span class="badge badge-atrasado mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Tarea atrasada</span>
+                  {% endif %}
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small fw-semibold">{{ p.codigo }}</span>
+                    <span class="badge badge-{{ estado_class }}">{{ p.estado }}</span>
+                    <span class="badge" style="background:#f1f5f9; color:#475569">{{ p.tipo_proyecto }}</span>
+                  </div>
+                  <div class="fw-bold text-dark mt-1" style="font-size:.95rem">{{ p.nombre }}</div>
+                  <div class="small mt-1" style="color:#3b82f6">
+                    <i class="bi bi-building me-1"></i>{{ p.cliente.nombre }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 mt-2 mt-lg-0">
+              {% set total = p.actividades | length %}
+              {% set comp = p.actividades | selectattr('estado', 'eq', 'Completado') | list | length %}
+              {% set pct = (comp / total * 100) | int if total > 0 else 0 %}
+              <div class="small text-muted mb-1">Progreso: {{ comp }}/{{ total }} actividades</div>
+              <div class="progress">
+                <div class="progress-bar bg-primary" style="width:{{ pct }}%"></div>
+              </div>
+            </div>
+            <div class="col-lg-3 mt-2 mt-lg-0 text-lg-end">
+              <div class="small text-muted">
+                {% if p.responsable %}<i class="bi bi-person me-1"></i>{{ p.responsable.nombre }}<br>{% endif %}
+                {% if p.fecha_estimada_cierre %}
+                  <i class="bi bi-calendar3 me-1"></i>Cierre: {{ p.fecha_estimada_cierre.strftime('%d %b %Y') }}
+                {% endif %}
+              </div>
+              <div class="small text-muted mt-1">
+                <i class="bi bi-clock me-1"></i>{{ p.updated_at.strftime('%d %b %Y') }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-6">
+    <i class="bi bi-folder-x display-4 text-muted d-block mb-3"></i>
+    <h5 class="text-muted">No hay proyectos{% if filtro_estado or filtro_tipo or filtro_cliente %} con esos filtros{% endif %}</h5>
+    {% if not (filtro_estado or filtro_tipo or filtro_cliente) %}
+    <a href="/proyectos/nuevo" class="btn btn-primary mt-2">
+      <i class="bi bi-plus-lg me-1"></i>Crear primer proyecto
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

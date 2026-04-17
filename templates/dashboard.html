@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Sigma Proyectos{% endblock %}
+{% block page_title %}<i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-dark">{{ stats.total }}</div>
+          <div class="stat-label">Total proyectos</div>
+        </div>
+        <div class="stat-icon" style="background:#eff6ff; color:#3b82f6">
+          <i class="bi bi-folder2-open"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num" style="color:#16a34a">{{ stats.activos }}</div>
+          <div class="stat-label">Activos</div>
+        </div>
+        <div class="stat-icon" style="background:#dcfce7; color:#16a34a">
+          <i class="bi bi-play-circle"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num" style="color:#1d4ed8">{{ stats.completados }}</div>
+          <div class="stat-label">Completados</div>
+        </div>
+        <div class="stat-icon" style="background:#dbeafe; color:#1d4ed8">
+          <i class="bi bi-check-circle"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num" style="color:#d97706">{{ stats.en_espera }}</div>
+          <div class="stat-label">En espera</div>
+        </div>
+        <div class="stat-icon" style="background:#fef3c7; color:#d97706">
+          <i class="bi bi-pause-circle"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Alarmas -->
+{% set hay_alarmas = tareas_atrasadas or tareas_por_vencer or pendientes_cliente or proyectos_sin_movimiento %}
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <h6 class="fw-bold mb-0 text-dark">Panel de Alertas</h6>
+      {% if not hay_alarmas %}
+      <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Sin alertas activas</span>
+      {% endif %}
+    </div>
+    <div class="row g-3">
+
+      <!-- Tareas atrasadas -->
+      <div class="col-md-6 col-lg-3">
+        <div class="alarm-card rojo h-100">
+          <div class="alarm-icon">🔴</div>
+          <div class="flex-grow-1">
+            <div class="alarm-title text-danger">Tareas Atrasadas</div>
+            <div class="alarm-count text-danger">{{ tareas_atrasadas | length }}</div>
+            {% if tareas_atrasadas %}
+            <div class="alarm-list">
+              {% for t in tareas_atrasadas[:3] %}
+              <div>→ <a href="/proyectos/{{ t.proyecto_id }}">{{ t.titulo[:40] }}{% if t.titulo|length > 40 %}…{% endif %}</a></div>
+              {% endfor %}
+              {% if tareas_atrasadas|length > 3 %}<div class="mt-1 text-muted">+{{ tareas_atrasadas|length - 3 }} más</div>{% endif %}
+            </div>
+            {% else %}
+            <div class="alarm-list text-success">Sin tareas atrasadas</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Por vencer -->
+      <div class="col-md-6 col-lg-3">
+        <div class="alarm-card naranja h-100">
+          <div class="alarm-icon">🟡</div>
+          <div class="flex-grow-1">
+            <div class="alarm-title text-warning">Próximas a Vencer</div>
+            <div class="alarm-count text-warning">{{ tareas_por_vencer | length }}</div>
+            <div class="alarm-list">
+              {% if tareas_por_vencer %}
+                {% for t in tareas_por_vencer[:3] %}
+                <div>→ <a href="/proyectos/{{ t.proyecto_id }}">{{ t.titulo[:40] }}{% if t.titulo|length > 40 %}…{% endif %}</a></div>
+                {% endfor %}
+                {% if tareas_por_vencer|length > 3 %}<div class="mt-1 text-muted">+{{ tareas_por_vencer|length - 3 }} más</div>{% endif %}
+              {% else %}
+                <span class="text-success">Ninguna en los próximos 7 días</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pendientes cliente -->
+      <div class="col-md-6 col-lg-3">
+        <div class="alarm-card azul h-100">
+          <div class="alarm-icon">🔵</div>
+          <div class="flex-grow-1">
+            <div class="alarm-title text-primary">Pendientes Cliente</div>
+            <div class="alarm-count text-primary">{{ pendientes_cliente | length }}</div>
+            <div class="alarm-list">
+              {% if pendientes_cliente %}
+                {% for t in pendientes_cliente[:3] %}
+                <div>→ <a href="/proyectos/{{ t.proyecto_id }}">{{ t.titulo[:40] }}{% if t.titulo|length > 40 %}…{% endif %}</a></div>
+                {% endfor %}
+                {% if pendientes_cliente|length > 3 %}<div class="mt-1 text-muted">+{{ pendientes_cliente|length - 3 }} más</div>{% endif %}
+              {% else %}
+                <span class="text-success">Sin pendientes de cliente</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sin movimiento -->
+      <div class="col-md-6 col-lg-3">
+        <div class="alarm-card gris h-100">
+          <div class="alarm-icon">⚫</div>
+          <div class="flex-grow-1">
+            <div class="alarm-title text-secondary">Sin Movimiento +15 días</div>
+            <div class="alarm-count text-secondary">{{ proyectos_sin_movimiento | length }}</div>
+            <div class="alarm-list">
+              {% if proyectos_sin_movimiento %}
+                {% for p in proyectos_sin_movimiento[:3] %}
+                <div>→ <a href="/proyectos/{{ p.id }}">{{ p.nombre[:40] }}{% if p.nombre|length > 40 %}…{% endif %}</a></div>
+                {% endfor %}
+              {% else %}
+                <span class="text-success">Todos activos recientemente</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Mis Tareas + Actividad Reciente -->
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-bold text-dark"><i class="bi bi-check2-square me-2 text-primary"></i>Mis Tareas Pendientes</span>
+        <a href="/mis-tareas" class="btn btn-sm btn-outline-primary">Ver todas</a>
+      </div>
+      <div class="card-body p-0">
+        {% if mis_tareas %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr>
+              <th class="ps-3">Actividad</th>
+              <th>Proyecto</th>
+              <th>Vence</th>
+              <th>Prioridad</th>
+            </tr></thead>
+            <tbody>
+            {% for t in mis_tareas %}
+            <tr>
+              <td class="ps-3">
+                <a href="/proyectos/{{ t.proyecto_id }}" class="text-decoration-none text-dark fw-semibold">
+                  {{ t.titulo[:45] }}{% if t.titulo|length > 45 %}…{% endif %}
+                </a>
+                <div class="small text-muted">{{ t.tipo }}</div>
+              </td>
+              <td><span class="small text-muted">{{ t.proyecto.codigo }}</span></td>
+              <td>
+                {% if t.fecha_limite %}
+                  {% if t.fecha_limite < hoy %}
+                    <span class="badge badge-atrasado">Atrasada</span>
+                  {% else %}
+                    <span class="small">{{ t.fecha_limite.strftime('%d %b') }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-prio-{{ t.prioridad | lower | replace('í','i') }}">{{ t.prioridad }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-check-circle display-6 d-block mb-2 text-success"></i>
+          Sin tareas pendientes asignadas
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header fw-bold text-dark">
+        <i class="bi bi-activity me-2 text-primary"></i>Actividad Reciente
+      </div>
+      <div class="card-body py-2">
+        {% if actividad_reciente %}
+          {% for c in actividad_reciente %}
+          <div class="bitacora-item">
+            <div class="bitacora-avatar {{ 'sistema' if c.tipo_registro == 'sistema' else 'cambio' if c.tipo_registro == 'cambio_estado' else '' }}">
+              {{ c.usuario.nombre[0] | upper }}
+            </div>
+            <div>
+              <div class="bitacora-texto">
+                <strong>{{ c.usuario.nombre.split()[0] }}</strong> ·
+                <a href="/proyectos/{{ c.proyecto_id }}" class="text-decoration-none text-muted small">{{ c.proyecto.codigo }}</a><br>
+                {{ c.texto[:80] }}{% if c.texto|length > 80 %}…{% endif %}
+              </div>
+              <div class="bitacora-fecha">{{ c.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4 text-muted small">Sin actividad registrada aún</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

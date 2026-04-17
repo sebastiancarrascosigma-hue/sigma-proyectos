@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Usuarios · Sigma Proyectos{% endblock %}
+{% block page_title %}<i class="bi bi-people me-2 text-primary"></i>Usuarios del Sistema{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- Lista usuarios -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Usuario</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in usuarios %}
+            <tr>
+              <td class="ps-4">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="user-avatar" style="width:36px;height:36px;font-size:.85rem">
+                    {{ u.nombre[0] | upper }}
+                  </div>
+                  <div>
+                    <div class="fw-semibold text-dark">{{ u.nombre }}</div>
+                    <div class="small text-muted">{{ u.email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="badge {{ 'bg-primary' if u.rol == 'admin' else 'bg-secondary' }}">
+                  {{ u.rol }}
+                </span>
+              </td>
+              <td>
+                <span class="badge {{ 'badge-activo' if u.activo else 'badge-cancelado' }}">
+                  {{ 'Activo' if u.activo else 'Inactivo' }}
+                </span>
+              </td>
+              <td>
+                <div class="d-flex gap-1">
+                  <form method="post" action="/usuarios/{{ u.id }}/toggle">
+                    <button type="submit" class="btn btn-sm {{ 'btn-outline-warning' if u.activo else 'btn-outline-success' }}"
+                            {{ 'disabled' if u.id == current_user.id else '' }}>
+                      {{ 'Desactivar' if u.activo else 'Activar' }}
+                    </button>
+                  </form>
+                  <!-- Cambiar password -->
+                  <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                          data-bs-target="#modalPass{{ u.id }}">
+                    <i class="bi bi-key"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario nuevo usuario -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header fw-bold text-dark">
+        <i class="bi bi-person-plus me-2 text-primary"></i>Agregar Usuario
+      </div>
+      <div class="card-body">
+        <form method="post" action="/usuarios/nuevo">
+          <div class="mb-3">
+            <label class="form-label">Nombre completo *</label>
+            <input type="text" name="nombre" class="form-control form-control-sm" required
+                   placeholder="Nombre Apellido">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email *</label>
+            <input type="email" name="email" class="form-control form-control-sm" required
+                   placeholder="usuario@sigmaenergia.cl">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contraseña *</label>
+            <input type="password" name="password" class="form-control form-control-sm" required
+                   minlength="6" placeholder="Mínimo 6 caracteres">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Rol</label>
+            <select name="rol" class="form-select form-select-sm">
+              <option value="usuario">Usuario</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100 fw-semibold">
+            <i class="bi bi-plus-lg me-1"></i>Crear Usuario
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modales cambiar contraseña -->
+{% for u in usuarios %}
+<div class="modal fade" id="modalPass{{ u.id }}" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Cambiar contraseña · {{ u.nombre.split()[0] }}</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/usuarios/{{ u.id }}/cambiar-password">
+        <div class="modal-body">
+          <label class="form-label">Nueva contraseña</label>
+          <input type="password" name="nueva_password" class="form-control" required minlength="6">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

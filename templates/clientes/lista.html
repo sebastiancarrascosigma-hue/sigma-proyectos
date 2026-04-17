@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Clientes · Sigma Proyectos{% endblock %}
+{% block page_title %}<i class="bi bi-building me-2 text-primary"></i>Clientes{% endblock %}
+{% block topbar_actions %}
+  <a href="/clientes/nuevo" class="btn btn-primary btn-sm fw-semibold">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo Cliente
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body p-0">
+    {% if clientes %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-4">Cliente</th>
+            <th>RUT</th>
+            <th>Contacto</th>
+            <th>Email</th>
+            <th>Proyectos</th>
+            <th>Cuentas</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in clientes %}
+          <tr>
+            <td class="ps-4">
+              <div class="fw-semibold text-dark">{{ c.nombre }}</div>
+            </td>
+            <td><span class="small text-muted">{{ c.rut or '—' }}</span></td>
+            <td><span class="small">{{ c.contacto_nombre or '—' }}</span></td>
+            <td>
+              {% if c.contacto_email %}
+              <a href="mailto:{{ c.contacto_email }}" class="small text-decoration-none text-muted">
+                {{ c.contacto_email }}
+              </a>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              <span class="badge" style="background:#eff6ff; color:#1d4ed8">
+                {{ c.proyectos | length }} proyecto(s)
+              </span>
+            </td>
+            <td>
+              <a href="/clientes/{{ c.id }}/cuentas"
+                 class="btn btn-sm {{ 'btn-outline-warning' if c.cuentas | length > 0 else 'btn-outline-secondary' }}"
+                 title="Ver credenciales">
+                <i class="bi bi-key me-1"></i>
+                {{ c.cuentas | length }}
+                cuenta{{ 's' if c.cuentas | length != 1 else '' }}
+              </a>
+            </td>
+            <td class="text-end pe-3">
+              <a href="/clientes/{{ c.id }}/editar" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-6">
+      <i class="bi bi-building-slash display-4 text-muted d-block mb-3"></i>
+      <h5 class="text-muted">No hay clientes registrados</h5>
+      <a href="/clientes/nuevo" class="btn btn-primary mt-2">Agregar primer cliente</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

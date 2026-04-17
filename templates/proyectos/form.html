@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if proyecto else 'Nuevo' }} Proyecto · Sigma Proyectos{% endblock %}
+{% block page_title %}
+  {% if proyecto %}<i class="bi bi-pencil me-2 text-warning"></i>Editar Proyecto
+  {% else %}<i class="bi bi-plus-circle me-2 text-primary"></i>Nuevo Proyecto{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-8">
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post" action="{{ '/proyectos/' + proyecto.id|string + '/editar' if proyecto else '/proyectos/nuevo' }}">
+
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre del Proyecto *</label>
+              <input type="text" name="nombre" class="form-control"
+                     value="{{ proyecto.nombre if proyecto else '' }}"
+                     placeholder="Ej: Estudio de Conexión PMGD Zona Norte" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Cliente *</label>
+              <select name="cliente_id" class="form-select" required>
+                <option value="">Seleccionar cliente…</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {{ 'selected' if proyecto and proyecto.cliente_id == c.id else '' }}>
+                  {{ c.nombre }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Tipo de Proyecto *</label>
+              <select name="tipo_proyecto" class="form-select" required>
+                {% for t in tipos %}
+                <option value="{{ t }}" {{ 'selected' if proyecto and proyecto.tipo_proyecto == t else '' }}>
+                  {{ t }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Orden de Compra / N° Contrato</label>
+              <input type="text" name="orden_compra" class="form-control"
+                     value="{{ proyecto.orden_compra or '' }}" placeholder="Ej: OC-2026-00145">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Valor Contrato (UF o CLP)</label>
+              <input type="number" name="valor_contrato" class="form-control" step="0.01"
+                     value="{{ proyecto.valor_contrato or '' }}" placeholder="Opcional">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Fecha de Inicio *</label>
+              <input type="date" name="fecha_inicio" class="form-control"
+                     value="{{ proyecto.fecha_inicio.strftime('%Y-%m-%d') if proyecto else '' }}" required>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Fecha Estimada Cierre</label>
+              <input type="date" name="fecha_estimada_cierre" class="form-control"
+                     value="{{ proyecto.fecha_estimada_cierre.strftime('%Y-%m-%d') if proyecto and proyecto.fecha_estimada_cierre else '' }}">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Responsable Sigma *</label>
+              <select name="responsable_id" class="form-select" required>
+                <option value="">Seleccionar…</option>
+                {% for u in usuarios %}
+                <option value="{{ u.id }}" {{ 'selected' if proyecto and proyecto.responsable_id == u.id else '' }}>
+                  {{ u.nombre }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {% if proyecto %}
+            <div class="col-md-4">
+              <label class="form-label">Estado</label>
+              <select name="estado" class="form-select">
+                {% for e in ['Activo', 'En Espera', 'Completado', 'Cancelado'] %}
+                <option value="{{ e }}" {{ 'selected' if proyecto.estado == e else '' }}>{{ e }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+
+            <div class="col-12">
+              <label class="form-label">Descripción / Alcance</label>
+              <textarea name="descripcion" class="form-control" rows="4"
+                        placeholder="Describe el alcance del proyecto…">{{ proyecto.descripcion or '' }}</textarea>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary fw-semibold px-4">
+              <i class="bi bi-check-lg me-1"></i>{{ 'Guardar cambios' if proyecto else 'Crear Proyecto' }}
+            </button>
+            <a href="{{ '/proyectos/' + proyecto.id|string if proyecto else '/proyectos' }}"
+               class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

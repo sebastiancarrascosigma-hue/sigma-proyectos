@@ -1,0 +1,90 @@
+{% set is_atrasada = act.fecha_limite and act.fecha_limite < hoy and act.estado not in ['Completado', 'Cancelado'] %}
+{% set is_por_vencer = act.fecha_limite and act.fecha_limite >= hoy and (act.fecha_limite - hoy).days <= 7 and act.estado not in ['Completado', 'Cancelado'] %}
+
+<div class="actividad-row {{ 'atrasada' if is_atrasada else 'por-vencer' if is_por_vencer else '' }}">
+  <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+        <!-- Estado badge -->
+        {% set est = act.estado | lower | replace(' ', '-') %}
+        <span class="badge badge-{{ est }}">{{ act.estado }}</span>
+
+        <!-- Prioridad -->
+        {% set prio = act.prioridad | lower | replace('í', 'i') %}
+        <span class="badge badge-prio-{{ prio }}">{{ act.prioridad }}</span>
+
+        <!-- Tipo -->
+        <span class="badge" style="background:#f1f5f9; color:#475569; font-size:.7rem">{{ act.tipo }}</span>
+
+        <!-- Atrasada indicator -->
+        {% if is_atrasada %}
+        <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>ATRASADA</span>
+        {% elif is_por_vencer %}
+        <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>POR VENCER</span>
+        {% endif %}
+      </div>
+
+      <div class="actividad-titulo">{{ act.titulo }}</div>
+
+      <div class="actividad-meta d-flex flex-wrap gap-3 mt-1">
+        <!-- Responsable -->
+        <span>
+          {% if act.responsable_tipo == 'Sigma' %}
+            <i class="bi bi-building text-primary me-1"></i>
+            <strong>Sigma</strong>
+            {% if act.responsable_usuario %}· {{ act.responsable_usuario.nombre }}{% endif %}
+          {% else %}
+            <i class="bi bi-person-badge text-info me-1"></i>
+            <strong>Cliente</strong>
+            {% if act.responsable_cliente_nombre %}· {{ act.responsable_cliente_nombre }}{% endif %}
+          {% endif %}
+        </span>
+
+        <!-- Fecha límite -->
+        {% if act.fecha_limite %}
+        <span class="{{ 'text-danger fw-semibold' if is_atrasada else 'text-warning fw-semibold' if is_por_vencer else '' }}">
+          <i class="bi bi-calendar3 me-1"></i>
+          {% if act.estado == 'Completado' %}
+            Completado {{ act.fecha_completado.strftime('%d %b %Y') if act.fecha_completado else '' }}
+          {% else %}
+            Vence {{ act.fecha_limite.strftime('%d %b %Y') }}
+          {% endif %}
+        </span>
+        {% endif %}
+      </div>
+
+      {% if act.descripcion %}
+      <div class="small text-muted mt-1" style="font-size:.75rem">{{ act.descripcion }}</div>
+      {% endif %}
+    </div>
+
+    <!-- Acciones rápidas -->
+    <div class="d-flex gap-1 flex-shrink-0">
+      {% if act.estado != 'Completado' %}
+      <form method="post" action="/actividades/{{ act.id }}/estado" class="d-inline">
+        <input type="hidden" name="nuevo_estado" value="Completado">
+        <button type="submit" class="btn btn-success btn-sm" title="Marcar completado"
+                onclick="return confirm('¿Marcar esta actividad como completada?')">
+          <i class="bi bi-check-lg"></i>
+        </button>
+      </form>
+      {% endif %}
+
+      {% if act.estado == 'Pendiente' %}
+      <form method="post" action="/actividades/{{ act.id }}/estado" class="d-inline">
+        <input type="hidden" name="nuevo_estado" value="En Progreso">
+        <button type="submit" class="btn btn-warning btn-sm text-dark" title="Iniciar">
+          <i class="bi bi-play-fill"></i>
+        </button>
+      </form>
+      {% endif %}
+
+      <form method="post" action="/actividades/{{ act.id }}/eliminar" class="d-inline">
+        <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar"
+                onclick="return confirm('¿Eliminar esta actividad?')">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

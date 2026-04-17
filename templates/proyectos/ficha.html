@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+{% block title %}{{ proyecto.codigo }} · Sigma Proyectos{% endblock %}
+{% block page_title %}
+  <a href="/proyectos" class="text-decoration-none text-muted small me-2">
+    <i class="bi bi-arrow-left"></i> Proyectos
+  </a>
+  {{ proyecto.codigo }}
+{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalEditar">
+    <i class="bi bi-pencil me-1"></i>Editar
+  </button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header Ficha -->
+{% set estado_slug = proyecto.estado | lower | replace(' ', '-') %}
+<div class="ficha-header estado-{{ estado_slug }} mb-4">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+    <div class="flex-grow-1">
+      <div class="ficha-codigo">{{ proyecto.codigo }} · {{ proyecto.tipo_proyecto }}</div>
+      <div class="ficha-nombre">{{ proyecto.nombre }}</div>
+      <div class="ficha-cliente mt-1">
+        <i class="bi bi-building me-1"></i>{{ proyecto.cliente.nombre }}
+        {% if proyecto.cliente.contacto_nombre %}
+        <span class="text-muted fw-normal ms-2 small">· {{ proyecto.cliente.contacto_nombre }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      <span class="badge badge-{{ estado_slug }} fs-6 px-3 py-2">{{ proyecto.estado }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Metadata bar -->
+<div class="ficha-meta mb-4">
+  <div class="ficha-meta-item">
+    <div class="ficha-meta-label"><i class="bi bi-file-text me-1"></i>Orden de Compra</div>
+    <div class="ficha-meta-value">{{ proyecto.orden_compra or '—' }}</div>
+  </div>
+  <div class="ficha-meta-item">
+    <div class="ficha-meta-label"><i class="bi bi-calendar-event me-1"></i>Inicio</div>
+    <div class="ficha-meta-value">{{ proyecto.fecha_inicio.strftime('%d %b %Y') }}</div>
+  </div>
+  <div class="ficha-meta-item">
+    <div class="ficha-meta-label"><i class="bi bi-calendar-check me-1"></i>Cierre estimado</div>
+    <div class="ficha-meta-value">
+      {% if proyecto.fecha_estimada_cierre %}
+        {{ proyecto.fecha_estimada_cierre.strftime('%d %b %Y') }}
+      {% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="ficha-meta-item">
+    <div class="ficha-meta-label"><i class="bi bi-person me-1"></i>Responsable</div>
+    <div class="ficha-meta-value">{{ proyecto.responsable.nombre if proyecto.responsable else '—' }}</div>
+  </div>
+  <div class="ficha-meta-item">
+    <div class="ficha-meta-label"><i class="bi bi-currency-dollar me-1"></i>Valor Contrato</div>
+    <div class="ficha-meta-value">
+      {% if proyecto.valor_contrato %}
+        {{ "{:,.0f}".format(proyecto.valor_contrato) }}
+      {% else %}—{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Progreso -->
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="fw-semibold small text-dark">Progreso general</span>
+      <span class="fw-bold small">{{ completadas }}/{{ total_act }} actividades completadas — {{ progreso }}%</span>
+    </div>
+    <div class="progress" style="height:10px">
+      <div class="progress-bar bg-primary" style="width:{{ progreso }}%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Descripción -->
+{% if proyecto.descripcion %}
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <div class="small text-muted fw-semibold mb-1"><i class="bi bi-card-text me-1"></i>DESCRIPCIÓN / ALCANCE</div>
+    <p class="mb-0 small text-dark" style="line-height:1.6">{{ proyecto.descripcion }}</p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Cuerpo principal: Actividades + Bitácora -->
+<div class="row g-4">
+
+  <!-- ── ACTIVIDADES ── -->
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-bold text-dark"><i class="bi bi-list-task me-2 text-primary"></i>Actividades</span>
+        <button class="btn btn-primary btn-sm fw-semibold"
+                data-bs-toggle="modal" data-bs-target="#modalActividad">
+          <i class="bi bi-plus-lg me-1"></i>Agregar
+        </button>
+      </div>
+
+      <!-- Tabs filtro -->
+      <div class="px-3 pt-3">
+        <ul class="nav nav-pills nav-fill gap-1 small" id="tabsActividades" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active py-1 px-2" data-bs-toggle="pill" data-bs-target="#tab-todas">
+              Todas <span class="badge bg-secondary ms-1">{{ total_act }}</span>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link py-1 px-2" data-bs-toggle="pill" data-bs-target="#tab-sigma">
+              Sigma
+              <span class="badge ms-1" style="background:#1d4ed8">
+                {{ proyecto.actividades | selectattr('responsable_tipo', 'eq', 'Sigma') | rejectattr('estado', 'in', ['Completado','Cancelado']) | list | length }}
+              </span>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link py-1 px-2" data-bs-toggle="pill" data-bs-target="#tab-cliente">
+              Cliente
+              <span class="badge ms-1" style="background:#0891b2">
+                {{ proyecto.actividades | selectattr('responsable_tipo', 'eq', 'Cliente') | rejectattr('estado', 'in', ['Completado','Cancelado']) | list | length }}
+              </span>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link py-1 px-2" data-bs-toggle="pill" data-bs-target="#tab-atrasadas">
+              Atrasadas
+              <span class="badge bg-danger ms-1">
+                {{ proyecto.actividades | selectattr('estado', 'ne', 'Completado') | selectattr('estado', 'ne', 'Cancelado') | list | length }}
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card-body pt-3">
+        <div class="tab-content">
+
+          <!-- Todas -->
+          <div class="tab-pane fade show active" id="tab-todas">
+            {% if proyecto.actividades %}
+              {% for act in proyecto.actividades %}
+              {% include "proyectos/_actividad_row.html" %}
+              {% endfor %}
+            {% else %}
+              <div class="text-center py-5 text-muted">
+                <i class="bi bi-clipboard-plus display-6 d-block mb-2"></i>
+                Sin actividades. Agrega la primera.
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Pendientes Sigma -->
+          <div class="tab-pane fade" id="tab-sigma">
+            {% set sigma_acts = proyecto.actividades | selectattr('responsable_tipo', 'eq', 'Sigma') | rejectattr('estado', 'in', ['Completado','Cancelado']) | list %}
+            {% if sigma_acts %}
+              {% for act in sigma_acts %}{% include "proyectos/_actividad_row.html" %}{% endfor %}
+            {% else %}
+              <div class="text-center py-5 text-muted small">Sin pendientes asignados a Sigma</div>
+            {% endif %}
+          </div>
+
+          <!-- Pendientes Cliente -->
+          <div class="tab-pane fade" id="tab-cliente">
+            {% set cliente_acts = proyecto.actividades | selectattr('responsable_tipo', 'eq', 'Cliente') | rejectattr('estado', 'in', ['Completado','Cancelado']) | list %}
+            {% if cliente_acts %}
+              {% for act in cliente_acts %}{% include "proyectos/_actividad_row.html" %}{% endfor %}
+            {% else %}
+              <div class="text-center py-5 text-muted small">Sin pendientes asignados al cliente</div>
+            {% endif %}
+          </div>
+
+          <!-- Atrasadas -->
+          <div class="tab-pane fade" id="tab-atrasadas">
+            {% set atrasadas = [] %}
+            {% for act in proyecto.actividades %}
+              {% if act.fecha_limite and act.fecha_limite < hoy and act.estado not in ['Completado', 'Cancelado'] %}
+                {% set _ = atrasadas.append(act) %}
+              {% endif %}
+            {% endfor %}
+            {% if atrasadas %}
+              {% for act in atrasadas %}{% include "proyectos/_actividad_row.html" %}{% endfor %}
+            {% else %}
+              <div class="text-center py-5 text-muted small">
+                <i class="bi bi-check-circle text-success d-block display-6 mb-2"></i>
+                Sin actividades atrasadas
+              </div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BITÁCORA ── -->
+  <div class="col-lg-5" id="bitacora">
+    <div class="card h-100">
+      <div class="card-header fw-bold text-dark">
+        <i class="bi bi-journal-text me-2 text-primary"></i>Bitácora del Proyecto
+      </div>
+      <div class="card-body" style="max-height:520px; overflow-y:auto;">
+        {% if proyecto.comentarios %}
+          {% for c in proyecto.comentarios %}
+          <div class="bitacora-item">
+            <div class="bitacora-avatar {{ 'sistema' if c.tipo_registro == 'sistema' else 'cambio' if c.tipo_registro == 'cambio_estado' else '' }}">
+              {{ c.usuario.nombre[0] | upper }}
+            </div>
+            <div>
+              <div class="bitacora-texto">
+                <strong>{{ c.usuario.nombre }}</strong>
+                {% if c.tipo_registro == 'cambio_estado' %}
+                  <span class="badge" style="background:#fef3c7; color:#92400e; font-size:.65rem">cambio estado</span>
+                {% elif c.tipo_registro == 'sistema' %}
+                  <span class="badge" style="background:#eff6ff; color:#1e40af; font-size:.65rem">sistema</span>
+                {% endif %}
+                <br>{{ c.texto }}
+              </div>
+              <div class="bitacora-fecha">{{ c.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4 text-muted small">Aún no hay registros en la bitácora</div>
+        {% endif %}
+      </div>
+
+      <!-- Agregar comentario -->
+      <div class="card-footer bg-white border-top pt-3">
+        <form method="post" action="/proyectos/{{ proyecto.id }}/comentar">
+          <div class="input-group">
+            <textarea name="texto" class="form-control form-control-sm" rows="2"
+                      placeholder="Agregar nota o comentario…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100 mt-2 fw-semibold">
+            <i class="bi bi-send me-1"></i>Agregar a bitácora
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODALES ═══════════════ -->
+
+<!-- Modal: Agregar Actividad -->
+<div class="modal fade" id="modalActividad" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>Agregar Actividad</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/actividades/nueva/{{ proyecto.id }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Título de la actividad *</label>
+              <input type="text" name="titulo" class="form-control" required
+                     placeholder="Ej: Entrega de informe técnico preliminar">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" class="form-select">
+                {% for t in tipos_actividad %}
+                <option value="{{ t }}">{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Prioridad</label>
+              <select name="prioridad" class="form-select">
+                {% for p in prioridades %}
+                <option value="{{ p }}" {{ 'selected' if p == 'Media' else '' }}>{{ p }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Responsable</label>
+              <select name="responsable_tipo" class="form-select" id="selectRespTipo">
+                <option value="Sigma">Sigma Energía</option>
+                <option value="Cliente">Cliente</option>
+              </select>
+            </div>
+            <div class="col-md-6" id="divRespUsuario">
+              <label class="form-label">Usuario Sigma</label>
+              <select name="responsable_usuario_id" class="form-select">
+                <option value="">Sin asignar</option>
+                {% for u in usuarios %}
+                <option value="{{ u.id }}">{{ u.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6 d-none" id="divRespCliente">
+              <label class="form-label">Contacto del Cliente</label>
+              <input type="text" name="responsable_cliente_nombre" class="form-control"
+                     placeholder="Nombre del contacto">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha Límite</label>
+              <input type="date" name="fecha_limite" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descripción (opcional)</label>
+              <textarea name="descripcion" class="form-control" rows="2"
+                        placeholder="Detalle adicional de la actividad…"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary fw-semibold">
+            <i class="bi bi-check-lg me-1"></i>Guardar Actividad
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Proyecto -->
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil me-2 text-warning"></i>Editar Proyecto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/proyectos/{{ proyecto.id }}/editar">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" value="{{ proyecto.nombre }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cliente *</label>
+              <select name="cliente_id" class="form-select" required>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {{ 'selected' if proyecto.cliente_id == c.id else '' }}>{{ c.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo de Proyecto</label>
+              <select name="tipo_proyecto" class="form-select">
+                {% for t in ['Estudio', 'Análisis Regulatorio', 'Contrato Supervisión', 'Auditoría', 'Otro'] %}
+                <option value="{{ t }}" {{ 'selected' if proyecto.tipo_proyecto == t else '' }}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Orden de Compra</label>
+              <input type="text" name="orden_compra" class="form-control" value="{{ proyecto.orden_compra or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Valor Contrato</label>
+              <input type="number" name="valor_contrato" class="form-control" step="0.01"
+                     value="{{ proyecto.valor_contrato or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Fecha Inicio *</label>
+              <input type="date" name="fecha_inicio" class="form-control"
+                     value="{{ proyecto.fecha_inicio.strftime('%Y-%m-%d') }}" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Cierre Estimado</label>
+              <input type="date" name="fecha_estimada_cierre" class="form-control"
+                     value="{{ proyecto.fecha_estimada_cierre.strftime('%Y-%m-%d') if proyecto.fecha_estimada_cierre else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Estado</label>
+              <select name="estado" class="form-select">
+                {% for e in estados_proyecto %}
+                <option value="{{ e }}" {{ 'selected' if proyecto.estado == e else '' }}>{{ e }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Responsable Sigma</label>
+              <select name="responsable_id" class="form-select">
+                {% for u in usuarios %}
+                <option value="{{ u.id }}" {{ 'selected' if proyecto.responsable_id == u.id else '' }}>
+                  {{ u.nombre }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descripción</label>
+              <textarea name="descripcion" class="form-control" rows="3">{{ proyecto.descripcion or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning fw-semibold text-dark">
+            <i class="bi bi-check-lg me-1"></i>Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Responsable tipo toggle
+document.getElementById('selectRespTipo').addEventListener('change', function() {
+  const esSigma = this.value === 'Sigma';
+  document.getElementById('divRespUsuario').classList.toggle('d-none', !esSigma);
+  document.getElementById('divRespCliente').classList.toggle('d-none', esSigma);
+});
+</script>
+{% endblock %}

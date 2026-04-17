@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Mis Tareas · Sigma Proyectos{% endblock %}
+{% block page_title %}<i class="bi bi-check2-square me-2 text-primary"></i>Mis Tareas Pendientes{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body p-0">
+    {% if tareas %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-4">Actividad</th>
+            <th>Proyecto</th>
+            <th>Tipo</th>
+            <th>Prioridad</th>
+            <th>Vence</th>
+            <th>Estado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for t in tareas %}
+        {% set is_atrasada = t.fecha_limite and t.fecha_limite < hoy %}
+        <tr class="{{ 'table-danger' if is_atrasada else '' }}">
+          <td class="ps-4">
+            <a href="/proyectos/{{ t.proyecto_id }}" class="text-decoration-none text-dark fw-semibold">
+              {{ t.titulo[:55] }}{% if t.titulo|length > 55 %}…{% endif %}
+            </a>
+          </td>
+          <td>
+            <div class="small text-muted">{{ t.proyecto.codigo }}</div>
+            <div class="small">{{ t.proyecto.cliente.nombre[:30] }}</div>
+          </td>
+          <td><span class="badge" style="background:#f1f5f9; color:#475569">{{ t.tipo }}</span></td>
+          <td>
+            {% set prio = t.prioridad | lower | replace('í','i') %}
+            <span class="badge badge-prio-{{ prio }}">{{ t.prioridad }}</span>
+          </td>
+          <td>
+            {% if t.fecha_limite %}
+              <span class="{{ 'text-danger fw-bold' if is_atrasada else '' }}">
+                {{ t.fecha_limite.strftime('%d %b %Y') }}
+                {% if is_atrasada %}<br><small>ATRASADA</small>{% endif %}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% set est = t.estado | lower | replace(' ', '-') %}
+            <span class="badge badge-{{ est }}">{{ t.estado }}</span>
+          </td>
+          <td>
+            <form method="post" action="/actividades/{{ t.id }}/estado">
+              <input type="hidden" name="nuevo_estado" value="Completado">
+              <button type="submit" class="btn btn-success btn-sm"
+                      onclick="return confirm('¿Marcar como completada?')">
+                <i class="bi bi-check-lg"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-6">
+      <i class="bi bi-check-circle display-4 text-success d-block mb-3"></i>
+      <h5 class="text-muted">Sin tareas pendientes asignadas</h5>
+      <p class="text-muted small">¡Todo al día!</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
