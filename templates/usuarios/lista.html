@@ -50,9 +50,16 @@
                       {{ 'Desactivar' if u.activo else 'Activar' }}
                     </button>
                   </form>
+                  <!-- Cambiar rol -->
+                  {% if u.id != current_user.id %}
+                  <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                          data-bs-target="#modalRol{{ u.id }}" title="Cambiar rol">
+                    <i class="bi bi-shield-half"></i>
+                  </button>
+                  {% endif %}
                   <!-- Cambiar password -->
                   <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
-                          data-bs-target="#modalPass{{ u.id }}">
+                          data-bs-target="#modalPass{{ u.id }}" title="Cambiar contraseña">
                     <i class="bi bi-key"></i>
                   </button>
                 </div>
@@ -103,6 +110,35 @@
     </div>
   </div>
 </div>
+
+<!-- Modales cambiar rol -->
+{% for u in usuarios %}
+{% if u.id != current_user.id %}
+<div class="modal fade" id="modalRol{{ u.id }}" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Cambiar rol · {{ u.nombre.split()[0] }}</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/usuarios/{{ u.id }}/cambiar-rol">
+        <div class="modal-body">
+          <label class="form-label">Nuevo rol</label>
+          <select name="nuevo_rol" class="form-select">
+            <option value="usuario" {{ 'selected' if u.rol == 'usuario' else '' }}>Usuario</option>
+            <option value="admin" {{ 'selected' if u.rol == 'admin' else '' }}>Administrador</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
 
 <!-- Modales cambiar contraseña -->
 {% for u in usuarios %}

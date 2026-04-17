@@ -61,6 +61,24 @@ async def toggle_activo(usuario_id: int, request: Request, db: Session = Depends
     return RedirectResponse("/usuarios", status_code=302)
 
 
+@router.post("/{usuario_id}/cambiar-rol")
+async def cambiar_rol(
+    usuario_id: int,
+    request: Request,
+    nuevo_rol: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user or user.rol != "admin":
+        return RedirectResponse("/dashboard", status_code=302)
+    u = db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
+    if u and u.id != user.id and nuevo_rol in ("admin", "usuario"):
+        u.rol = nuevo_rol
+        db.commit()
+        request.session["flash"] = {"tipo": "success", "texto": f"Rol de '{u.nombre}' actualizado a {nuevo_rol}."}
+    return RedirectResponse("/usuarios", status_code=302)
+
+
 @router.post("/{usuario_id}/cambiar-password")
 async def cambiar_password(
     usuario_id: int,

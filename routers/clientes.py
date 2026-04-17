@@ -24,8 +24,8 @@ async def lista(request: Request, db: Session = Depends(get_db)):
 @router.get("/nuevo", response_class=HTMLResponse)
 async def nuevo_form(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
+    if not user or user.rol != "admin":
+        return RedirectResponse("/clientes", status_code=302)
     return templates.TemplateResponse(request, "clientes/form.html", {
         "current_user": user, "cliente": None
     })
@@ -42,8 +42,8 @@ async def nuevo_submit(
     db: Session = Depends(get_db)
 ):
     user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
+    if not user or user.rol != "admin":
+        return RedirectResponse("/clientes", status_code=302)
     cliente = models.Cliente(
         nombre=nombre.strip(),
         rut=rut.strip() or None,
@@ -60,8 +60,8 @@ async def nuevo_submit(
 @router.get("/{cliente_id}/editar", response_class=HTMLResponse)
 async def editar_form(cliente_id: int, request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
+    if not user or user.rol != "admin":
+        return RedirectResponse("/clientes", status_code=302)
     cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
     if not cliente:
         return RedirectResponse("/clientes", status_code=302)
@@ -82,8 +82,8 @@ async def editar_submit(
     db: Session = Depends(get_db)
 ):
     user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
+    if not user or user.rol != "admin":
+        return RedirectResponse("/clientes", status_code=302)
     cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
     if cliente:
         cliente.nombre = nombre.strip()
