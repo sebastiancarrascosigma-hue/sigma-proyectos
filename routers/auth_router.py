@@ -35,7 +35,7 @@ async def login_submit(
 
     token = auth.create_token(user.id)
     response = RedirectResponse("/dashboard", status_code=302)
-    response.set_cookie("access_token", token, httponly=True, max_age=60 * 60 * 24 * 7)
+    response.set_cookie("access_token", token, httponly=True, secure=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     return response
 
 
