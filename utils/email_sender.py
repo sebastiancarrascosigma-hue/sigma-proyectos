@@ -1,29 +1,94 @@
-"""Envío de minutas por email via SMTP (Microsoft 365 / Office 365)."""
-import os, smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
+"""Envío de minutas por email via Microsoft Graph API (Office 365)."""
+import os, json, base64
+import urllib.request, urllib.parse
 
-SMTP_HOST      = os.getenv("SMTP_HOST", "smtp.office365.com")
-SMTP_PORT      = int(os.getenv("SMTP_PORT", "587"))
-EMAIL_SENDER   = os.getenv("EMAIL_SENDER", "")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
-APP_URL        = os.getenv("APP_URL", "https://sebas1989-sigma-proyectos.hf.space")
+EMAIL_SENDER        = os.getenv("EMAIL_SENDER", "")
+EMAIL_PASSWORD      = os.getenv("EMAIL_PASSWORD", "")
+AZURE_TENANT_ID     = os.getenv("AZURE_TENANT_ID", "")
+AZURE_CLIENT_ID     = os.getenv("AZURE_CLIENT_ID", "")
+AZURE_CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET", "")
+APP_URL             = os.getenv("APP_URL", "https://sebas1989-sigma-proyectos.hf.space")
 
+
+# ── Autenticación Graph API ────────────────────────────────────────────────────
+
+def _obtener_token() -> str | None:
+    """Obtiene access token via ROPC flow (usuario + contraseña + app credentials)."""
+    if not all([AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, EMAIL_SENDER, EMAIL_PASSWORD]):
+        return None
+    data = urllib.parse.urlencode({
+        "grant_type":    "password",
+        "client_id":     AZURE_CLIENT_ID,
+        "client_secret": AZURE_CLIENT_SECRET,
+        "username":      EMAIL_SENDER,
+        "password":      EMAIL_PASSWORD,
+        "scope":         "https://graph.microsoft.com/Mail.Send offline_access",
+    }).encode()
+    try:
+        req  = urllib.request.Request(
+            f"https://login.microsoftonline.com/{AZURE_TENANT_ID}/oauth2/v2.0/token",
+            data=data, method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())["access_token"]
+    except Exception as e:
+        print(f"[email] Error obteniendo token: {e}")
+        return None
+
+
+def _enviar_graph(token: str, destinatarios: list[str], asunto: str,
+                  html: str, adjuntos: list[dict] | None = None) -> tuple[bool, str]:
+    """Envía un email via Graph API."""
+    payload = {
+        "message": {
+            "subject": asunto,
+            "body": {"contentType": "HTML", "content": html},
+            "toRecipients": [{"emailAddress": {"address": d}} for d in destinatarios],
+        },
+        "saveToSentItems": True,
+    }
+    if adjuntos:
+        payload["message"]["attachments"] = adjuntos
+
+    data = json.dumps(payload).encode("utf-8")
+    req  = urllib.request.Request(
+        f"https://graph.microsoft.com/v1.0/users/{EMAIL_SENDER}/sendMail",
+        data=data,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type":  "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status in (200, 202), ""
+    except urllib.error.HTTPError as e:
+        detalle = e.read().decode()[:200]
+        return False, f"HTTP {e.code}: {detalle}"
+    except Exception as e:
+        return False, str(e)
+
+
+def _credenciales_ok() -> bool:
+    return all([EMAIL_SENDER, EMAIL_PASSWORD, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET])
+
+
+# ── Funciones públicas ─────────────────────────────────────────────────────────
 
 def enviar_notificacion_interna(minuta, emails_sigma: list[str]) -> tuple[bool, str]:
-    """
-    Notifica al equipo Sigma que la minuta está lista para revisión.
-    Envía un email simple con el resumen y un link a la app.
-    """
-    if not EMAIL_SENDER or not EMAIL_PASSWORD:
-        return False, "Credenciales de email no configuradas."
+    """Notifica al equipo Sigma que la minuta está lista para revisión."""
+    if not _credenciales_ok():
+        return False, "Credenciales de email no configuradas en los secrets de HF Spaces."
     if not emails_sigma:
         return False, "No hay usuarios Sigma con email para notificar."
 
-    asunto = f"[Para revisión] Minuta {minuta.fecha.strftime('%d/%m/%Y')} · {minuta.cliente.nombre}"
-    url    = f"{APP_URL}/minutas/{minuta.id}"
+    token = _obtener_token()
+    if not token:
+        return False, "No se pudo obtener token de autenticación."
 
+    asunto      = f"[Para revisión] Minuta {minuta.fecha.strftime('%d/%m/%Y')} · {minuta.cliente.nombre}"
+    url_minuta  = f"{APP_URL}/minutas/{minuta.id}"
     temas_lista = "".join(
         f'<li style="margin-bottom:6px"><strong style="color:#1d4ed8">{t.proyecto.codigo}</strong> — '
         f'{t.lo_tratado[:120]}{"…" if len(t.lo_tratado) > 120 else ""}</li>'
@@ -43,12 +108,11 @@ def enviar_notificacion_interna(minuta, emails_sigma: list[str]) -> tuple[bool, 
     <p style="color:#374151;font-size:14px;margin-top:0">
       <strong>{minuta.creador.nombre if minuta.creador else "Un compañero"}</strong> ha creado una nueva minuta
       del <strong>{minuta.fecha.strftime("%d/%m/%Y")}</strong> para el cliente
-      <strong>{minuta.cliente.nombre}</strong>. Por favor revísala, complementa o agrega observaciones antes
-      de enviarla al cliente.
+      <strong>{minuta.cliente.nombre}</strong>. Por favor revísala, complementa o agrega observaciones antes de enviarla al cliente.
     </p>
     {"<p style='font-size:13px;color:#6b7280;margin-bottom:4px'><strong>Proyectos tratados:</strong></p><ul style='font-size:13px;color:#374151;padding-left:20px'>" + temas_lista + "</ul>" if minuta.temas else ""}
     <div style="text-align:center;margin:24px 0">
-      <a href="{url}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;
+      <a href="{url_minuta}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;
          padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px">
         Ver minuta en la app →
       </a>
@@ -60,71 +124,52 @@ def enviar_notificacion_interna(minuta, emails_sigma: list[str]) -> tuple[bool, 
 </div>
 </body></html>"""
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = asunto
-    msg["From"]    = EMAIL_SENDER
-    msg["To"]      = ", ".join(emails_sigma)
-    msg.attach(MIMEText(html, "html", "utf-8"))
-
-    try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_SENDER, emails_sigma, msg.as_string())
+    ok, err = _enviar_graph(token, emails_sigma, asunto, html)
+    if ok:
         return True, f"Notificación enviada a {len(emails_sigma)} persona(s) del equipo Sigma."
-    except Exception as e:
-        return False, f"Error al enviar notificación: {e}"
+    return False, f"Error al enviar notificación: {err}"
 
 
 def enviar_minuta(minuta, destinatarios: list[str]) -> tuple[bool, str]:
-    """
-    Envía el resumen de la minuta a todos los destinatarios.
-    Devuelve (ok: bool, mensaje: str).
-    """
-    if not EMAIL_SENDER or not EMAIL_PASSWORD:
-        return False, "Credenciales de email no configuradas (EMAIL_SENDER / EMAIL_PASSWORD)."
+    """Envía la minuta al cliente con PDF adjunto."""
+    if not _credenciales_ok():
+        return False, "Credenciales de email no configuradas en los secrets de HF Spaces."
     if not destinatarios:
         return False, "No hay participantes con email."
 
-    asunto = f"Minuta {minuta.fecha.strftime('%d/%m/%Y')} · {minuta.cliente.nombre} · {minuta.titulo}"
-    html   = _construir_html(minuta)
+    token = _obtener_token()
+    if not token:
+        return False, "No se pudo obtener token de autenticación."
 
-    msg = MIMEMultipart("mixed")
-    msg["Subject"] = asunto
-    msg["From"]    = EMAIL_SENDER
-    msg["To"]      = ", ".join(destinatarios)
+    asunto  = f"Minuta {minuta.fecha.strftime('%d/%m/%Y')} · {minuta.cliente.nombre} · {minuta.titulo}"
+    html    = _construir_html(minuta)
+    adjuntos = []
 
-    # Parte HTML
-    alternativa = MIMEMultipart("alternative")
-    alternativa.attach(MIMEText(html, "html", "utf-8"))
-    msg.attach(alternativa)
-
-    # Adjunto PDF (si weasyprint está disponible)
+    # PDF adjunto
     try:
         from utils.pdf_generator import generar_pdf_minuta
         pdf_bytes = generar_pdf_minuta(minuta)
         if pdf_bytes:
             nombre_pdf = f"Minuta_{minuta.fecha.strftime('%Y%m%d')}_{minuta.cliente.nombre.replace(' ', '_')}.pdf"
-            adjunto = MIMEApplication(pdf_bytes, _subtype="pdf")
-            adjunto.add_header("Content-Disposition", "attachment", filename=nombre_pdf)
-            msg.attach(adjunto)
+            adjuntos.append({
+                "@odata.type":  "#microsoft.graph.fileAttachment",
+                "name":         nombre_pdf,
+                "contentType":  "application/pdf",
+                "contentBytes": base64.b64encode(pdf_bytes).decode(),
+            })
     except Exception as _e:
-        print(f"[email] No se pudo adjuntar PDF: {_e}")
+        print(f"[email] No se pudo generar PDF: {_e}")
 
-    try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_SENDER, destinatarios, msg.as_string())
-        return True, f"Minuta enviada a {len(destinatarios)} participante(s)."
-    except Exception as e:
-        return False, f"Error al enviar email: {e}"
+    ok, err = _enviar_graph(token, destinatarios, asunto, html, adjuntos or None)
+    if ok:
+        sufijo = " (con PDF adjunto)" if adjuntos else ""
+        return True, f"Minuta enviada a {len(destinatarios)} participante(s){sufijo}."
+    return False, f"Error al enviar email: {err}"
 
+
+# ── HTML del email al cliente ──────────────────────────────────────────────────
 
 def _construir_html(minuta) -> str:
-    # Filas de la tabla de temas
     filas_temas = ""
     for t in minuta.temas:
         acuerdo_cell = f'<div style="border-left:3px solid #16a34a;padding-left:8px;white-space:pre-wrap;color:#374151">{t.acuerdos}</div>' if t.acuerdos else '<span style="color:#9ca3af">—</span>'
@@ -175,46 +220,22 @@ def _construir_html(minuta) -> str:
 <html><head><meta charset="UTF-8"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:0;background:#f9fafb">
 <div style="max-width:680px;margin:30px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-
-  <!-- Header -->
   <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);padding:28px 32px">
     <div style="color:#bfdbfe;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Sigma Energía SpA</div>
     <h1 style="color:#fff;margin:6px 0 4px;font-size:22px;font-weight:700">Minuta de Reunión</h1>
     <div style="color:#dbeafe;font-size:14px">{minuta.titulo}</div>
   </div>
-
   <div style="padding:28px 32px">
-
-    <!-- Metadata -->
     <table style="width:100%;margin-bottom:24px;font-size:14px;color:#374151">
-      <tr>
-        <td style="padding:4px 0;width:130px;color:#6b7280;font-weight:600">Cliente</td>
-        <td style="padding:4px 0"><strong>{minuta.cliente.nombre}</strong></td>
-      </tr>
-      <tr>
-        <td style="padding:4px 0;color:#6b7280;font-weight:600">Fecha</td>
-        <td style="padding:4px 0">{minuta.fecha.strftime("%d de %B de %Y")}</td>
-      </tr>
-      <tr>
-        <td style="padding:4px 0;color:#6b7280;font-weight:600">Elaboró</td>
-        <td style="padding:4px 0">{minuta.creador.nombre if minuta.creador else "—"}</td>
-      </tr>
+      <tr><td style="padding:4px 0;width:130px;color:#6b7280;font-weight:600">Cliente</td><td style="padding:4px 0"><strong>{minuta.cliente.nombre}</strong></td></tr>
+      <tr><td style="padding:4px 0;color:#6b7280;font-weight:600">Fecha</td><td style="padding:4px 0">{minuta.fecha.strftime("%d de %B de %Y")}</td></tr>
+      <tr><td style="padding:4px 0;color:#6b7280;font-weight:600">Elaboró</td><td style="padding:4px 0">{minuta.creador.nombre if minuta.creador else "—"}</td></tr>
     </table>
-
-    <!-- Participantes -->
     {f'<div style="margin-bottom:24px"><div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:8px">Participantes</div>{participantes_html}</div>' if minuta.participantes else ""}
-
     {resumen_html}
-
-    <!-- Proyectos -->
-    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:12px">
-      Proyectos Tratados ({len(minuta.temas)})
-    </div>
+    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:12px">Proyectos Tratados ({len(minuta.temas)})</div>
     {temas_html}
-
   </div>
-
-  <!-- Footer -->
   <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;text-align:center">
     Este correo fue generado automáticamente por el sistema Sigma Proyectos · Sigma Energía SpA
   </div>
