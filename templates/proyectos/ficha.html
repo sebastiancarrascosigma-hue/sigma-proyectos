@@ -10,6 +10,16 @@
   <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalEditar">
     <i class="bi bi-pencil me-1"></i>Editar
   </button>
+  {% if current_user.rol == "admin" %}
+    {% if proyecto.estado not in ("Completado", "Cancelado") %}
+    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalFinalizar">
+      <i class="bi bi-check-circle me-1"></i>Finalizar
+    </button>
+    {% endif %}
+    <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalEliminar">
+      <i class="bi bi-trash me-1"></i>Eliminar
+    </button>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -407,6 +417,62 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Finalizar Proyecto -->
+{% if current_user.rol == "admin" and proyecto.estado not in ("Completado", "Cancelado") %}
+<div class="modal fade" id="modalFinalizar" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold text-success">
+          <i class="bi bi-check-circle me-2"></i>Finalizar Proyecto
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-3">
+        <p class="mb-1">¿Marcar como <strong>Completado</strong>?</p>
+        <p class="small text-muted mb-0">{{ proyecto.codigo }} · {{ proyecto.nombre[:50] }}</p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post" action="/proyectos/{{ proyecto.id }}/finalizar" class="d-inline">
+          <button type="submit" class="btn btn-success btn-sm fw-semibold">
+            <i class="bi bi-check-lg me-1"></i>Confirmar
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal: Eliminar Proyecto -->
+{% if current_user.rol == "admin" %}
+<div class="modal fade" id="modalEliminar" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold text-danger">
+          <i class="bi bi-trash me-2"></i>Eliminar Proyecto
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-3">
+        <p class="mb-1">Esta acción es <strong>irreversible</strong>.</p>
+        <p class="small text-muted mb-0">Se eliminarán todas las actividades y bitácora de<br><strong>{{ proyecto.codigo }}</strong>.</p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post" action="/proyectos/{{ proyecto.id }}/eliminar" class="d-inline">
+          <button type="submit" class="btn btn-danger btn-sm fw-semibold">
+            <i class="bi bi-trash me-1"></i>Eliminar
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 {% endblock %}
 

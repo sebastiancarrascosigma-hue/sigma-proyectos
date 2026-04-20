@@ -219,6 +219,41 @@ async def editar_submit(
     return RedirectResponse(f"/proyectos/{proyecto_id}", status_code=302)
 
 
+@router.post("/{proyecto_id}/finalizar")
+async def finalizar(proyecto_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user or user.rol != "admin":
+        return RedirectResponse("/proyectos", status_code=302)
+    proyecto = db.query(models.Proyecto).filter(models.Proyecto.id == proyecto_id).first()
+    if proyecto and proyecto.estado not in ("Completado", "Cancelado"):
+        proyecto.estado = "Completado"
+        proyecto.fecha_cierre_real = datetime.utcnow()
+        proyecto.updated_at = datetime.utcnow()
+        db.add(models.Comentario(
+            proyecto_id=proyecto_id,
+            usuario_id=user.id,
+            texto=f"Proyecto marcado como Completado por {user.nombre}.",
+            tipo_registro="cambio_estado",
+        ))
+        db.commit()
+        request.session["flash"] = {"tipo": "success", "texto": "Proyecto finalizado exitosamente."}
+    return RedirectResponse(f"/proyectos/{proyecto_id}", status_code=302)
+
+
+@router.post("/{proyecto_id}/eliminar")
+async def eliminar(proyecto_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user or user.rol != "admin":
+        return RedirectResponse("/proyectos", status_code=302)
+    proyecto = db.query(models.Proyecto).filter(models.Proyecto.id == proyecto_id).first()
+    if proyecto:
+        codigo = proyecto.codigo
+        db.delete(proyecto)
+        db.commit()
+        request.session["flash"] = {"tipo": "warning", "texto": f"Proyecto '{codigo}' eliminado."}
+    return RedirectResponse("/proyectos", status_code=302)
+
+
 @router.post("/{proyecto_id}/comentar")
 async def agregar_comentario(
     proyecto_id: int,
