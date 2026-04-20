@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey, Date, desc
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey, Date
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -192,8 +192,7 @@ class Comentario(Base):
     proyecto = relationship("Proyecto", back_populates="comentarios")
     actividad = relationship("Actividad", back_populates="comentarios")
     usuario = relationship("Usuario", back_populates="comentarios")
-    documentos = relationship("Documento", back_populates="comentario",
-                              foreign_keys="[Documento.comentario_id]")
+    documentos = relationship("Documento", back_populates="comentario")
 
 
 class Documento(Base):
