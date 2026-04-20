@@ -302,13 +302,8 @@ async def notificar_equipo(minuta_id: int, request: Request, db: Session = Depen
     if not minuta:
         return RedirectResponse("/minutas", status_code=302)
 
-    # Enviar a todos los usuarios activos del sistema (equipo Sigma)
-    usuarios_sigma = db.query(models.Usuario).filter(
-        models.Usuario.activo == True,
-        models.Usuario.email != None,
-        models.Usuario.email != "",
-    ).all()
-    emails = [u.email for u in usuarios_sigma if u.email and u.email.strip()]
+    # Enviar solo a los participantes de la minuta que tengan email
+    emails = [p.email for p in minuta.participantes if p.email and p.email.strip()]
 
     ok, mensaje = enviar_notificacion_interna(minuta, emails)
     if ok:
