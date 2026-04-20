@@ -8,7 +8,17 @@ Opciones:
   --full    Fuerza actualización de todos los registros (no solo nuevos)
 """
 import os, sys, argparse
+SUPABASE_URL = "https://burpgfobhpszpvagcvjg.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1cnBnZm9iaHBzenB2YWdjdmpnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjQzNzE2MCwiZXhwIjoyMDkyMDEzMTYwfQ.xu7tTlRUjtzxAiKVwaLj7c_-eC9BzaGklZUN2NJTNhE"
+BUCKET = "correspondencia"
 from datetime import datetime
+
+try:
+    import requests as _requests
+    _REQUESTS_OK = True
+except ImportError:
+    _REQUESTS_OK = False
+    print("[aviso] 'requests' no instalado — se omite subida de PDFs. Instala con: pip install requests")
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -61,7 +71,8 @@ def parsear_fecha(valor):
     if pd.isna(valor) or str(valor).strip() in ("", "—", "-", "nan"):
         return None
     s = str(valor).strip()
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y",
+                "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%Y-%m-%d %H:%M:%S"):
         try:
             return datetime.strptime(s, fmt).date()
         except ValueError:
@@ -81,11 +92,41 @@ def buscar_pdf_local(correlativo, fecha):
     return None
 
 
+def subir_pdf_supabase(ruta_local, correlativo, fecha):
+    """Sube el PDF a Supabase Storage. Devuelve la URL pública o None."""
+    if not _REQUESTS_OK or not SUPABASE_KEY:
+        return None
+    fecha_dir = fecha.strftime("%Y/%m") if fecha else "sin_fecha"
+    storage_path = f"{fecha_dir}/{correlativo}.pdf"
+    try:
+        with open(ruta_local, "rb") as f:
+            contenido = f.read()
+        resp = _requests.post(
+            f"{SUPABASE_URL}/storage/v1/object/{BUCKET}/{storage_path}",
+            headers={
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/pdf",
+                "x-upsert": "true",
+            },
+            data=contenido,
+            timeout=60,
+        )
+        if resp.status_code in (200, 201):
+            return f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{storage_path}"
+        print(f"  [pdf] Error {correlativo}: HTTP {resp.status_code} — {resp.text[:120]}")
+        return None
+    except Exception as e:
+        print(f"  [pdf] Excepción {correlativo}: {e}")
+        return None
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--excel", default=None, help="Ruta al Excel")
     parser.add_argument("--full", action="store_true", help="Actualiza todos los registros")
+    parser.add_argument("--skip-pdfs", action="store_true", help="No subir PDFs a Supabase Storage")
     args = parser.parse_args()
+    subir_pdfs = not args.skip_pdfs and _REQUESTS_OK and bool(SUPABASE_KEY)
 
     ruta = encontrar_excel(args.excel)
     print(f"Leyendo: {ruta}")
@@ -116,8 +157,9 @@ def main():
 
     df = df[df["correlativo"].notna()].copy()
     df["correlativo"] = df["correlativo"].astype(str).str.strip()
+    df = df.drop_duplicates(subset=["correlativo"], keep="last")
 
-    print(f"Registros en Excel: {len(df)}")
+    print(f"Registros en Excel: {len(df)} (únicos)")
 
     db = SessionLocal()
     existentes = {r.correlativo for r in db.query(models.Correspondencia.correlativo).all()}
@@ -125,6 +167,7 @@ def main():
 
     nuevos = 0
     actualizados = 0
+    pdfs_subidos = 0
 
     for _, row in df.iterrows():
         correlativo = row.get("correlativo", "").strip()
@@ -141,6 +184,18 @@ def main():
             return None if s in ("", "nan", "—", "-") else s
 
         if correlativo in existentes and not args.full:
+            # Registro ya existe: solo intentar subir PDF si aún no tiene URL
+            if subir_pdfs:
+                reg = db.query(models.Correspondencia).filter(
+                    models.Correspondencia.correlativo == correlativo
+                ).first()
+                if reg and not reg.pdf_url:
+                    pdf_local = buscar_pdf_local(correlativo, fecha)
+                    if pdf_local:
+                        url = subir_pdf_supabase(pdf_local, correlativo, fecha)
+                        if url:
+                            reg.pdf_url = url
+                            pdfs_subidos += 1
             continue
 
         data = dict(
@@ -156,6 +211,16 @@ def main():
             estado=get("estado"),
             updated_at=datetime.utcnow(),
         )
+
+        # Buscar y subir PDF
+        if subir_pdfs:
+            pdf_local = buscar_pdf_local(correlativo, fecha)
+            if pdf_local:
+                url = subir_pdf_supabase(pdf_local, correlativo, fecha)
+                if url:
+                    data["pdf_url"] = url
+                    pdfs_subidos += 1
+                    print(f"  [pdf] ↑ {correlativo}")
 
         if correlativo in existentes:
             db.query(models.Correspondencia).filter(
@@ -173,7 +238,7 @@ def main():
     db.commit()
     db.close()
 
-    print(f"\n✓ Nuevos: {nuevos} | Actualizados: {actualizados} | Sin cambios: {len(df) - nuevos - actualizados}")
+    print(f"\n✓ Nuevos: {nuevos} | Actualizados: {actualizados} | PDFs subidos: {pdfs_subidos} | Sin cambios: {len(df) - nuevos - actualizados}")
     print("Sincronización completada.")
 
 
