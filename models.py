@@ -31,7 +31,8 @@ class Cliente(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     proyectos = relationship("Proyecto", back_populates="cliente")
-    cuentas = relationship("CuentaCliente", back_populates="cliente", cascade="all, delete-orphan", order_by="CuentaCliente.nombre_sistema")
+    cuentas   = relationship("CuentaCliente", back_populates="cliente", cascade="all, delete-orphan", order_by="CuentaCliente.nombre_sistema")
+    minutas   = relationship("Minuta", back_populates="cliente", order_by="Minuta.fecha.desc()")
 
 
 class CuentaCliente(Base):
@@ -97,6 +98,38 @@ class Actividad(Base):
     proyecto = relationship("Proyecto", back_populates="actividades")
     responsable_usuario = relationship("Usuario", back_populates="actividades_asignadas", foreign_keys=[responsable_usuario_id])
     comentarios = relationship("Comentario", back_populates="actividad")
+
+
+class Minuta(Base):
+    __tablename__ = "minutas"
+    id            = Column(Integer, primary_key=True, index=True)
+    cliente_id    = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    titulo        = Column(String(300), nullable=False)
+    fecha         = Column(DateTime, nullable=False)
+    participantes = Column(Text)
+    resumen       = Column(Text)
+    created_by    = Column(Integer, ForeignKey("usuarios.id"))
+    created_at    = Column(DateTime, default=datetime.utcnow)
+    updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    cliente  = relationship("Cliente", back_populates="minutas")
+    creador  = relationship("Usuario", foreign_keys=[created_by])
+    temas    = relationship("MinutaTema", back_populates="minuta",
+                            cascade="all, delete-orphan", order_by="MinutaTema.id")
+
+
+class MinutaTema(Base):
+    __tablename__ = "minuta_temas"
+    id          = Column(Integer, primary_key=True, index=True)
+    minuta_id   = Column(Integer, ForeignKey("minutas.id"), nullable=False)
+    proyecto_id = Column(Integer, ForeignKey("proyectos.id"), nullable=False)
+    lo_tratado  = Column(Text, nullable=False)
+    acuerdos    = Column(Text)
+    responsable_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+
+    minuta      = relationship("Minuta", back_populates="temas")
+    proyecto    = relationship("Proyecto")
+    responsable = relationship("Usuario", foreign_keys=[responsable_id])
 
 
 class Correspondencia(Base):

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Minutas · Sigma Proyectos{% endblock %}
+{% block page_title %}<i class="bi bi-journal-text me-2 text-primary"></i>Minutas de Reunión{% endblock %}
+{% block topbar_actions %}
+  <a href="/minutas/nueva" class="btn btn-primary btn-sm fw-semibold">
+    <i class="bi bi-plus-lg me-1"></i>Nueva Minuta
+  </a>
+{% endblock %}
+
+{% block content %}
+{% if minutas %}
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th class="ps-4">Fecha</th>
+          <th>Cliente</th>
+          <th>Título</th>
+          <th class="text-center">Proyectos</th>
+          <th>Creada por</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in minutas %}
+        <tr>
+          <td class="ps-4 text-nowrap">
+            <span class="fw-semibold">{{ m.fecha.strftime('%d/%m/%Y') }}</span>
+          </td>
+          <td>
+            <span class="badge" style="background:#eff6ff;color:#1d4ed8">{{ m.cliente.nombre }}</span>
+          </td>
+          <td>
+            <a href="/minutas/{{ m.id }}" class="text-decoration-none text-dark fw-semibold">
+              {{ m.titulo[:70] }}{% if m.titulo|length > 70 %}…{% endif %}
+            </a>
+            {% if m.participantes %}
+            <div class="small text-muted"><i class="bi bi-people me-1"></i>{{ m.participantes[:60] }}{% if m.participantes|length > 60 %}…{% endif %}</div>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge bg-secondary">{{ m.temas|length }} proyecto(s)</span>
+          </td>
+          <td class="small text-muted">{{ m.creador.nombre.split()[0] if m.creador else '—' }}</td>
+          <td class="text-end pe-3">
+            <a href="/minutas/{{ m.id }}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="text-center py-6">
+    <i class="bi bi-journal-x display-4 text-muted d-block mb-3"></i>
+    <h5 class="text-muted">No hay minutas registradas</h5>
+    <a href="/minutas/nueva" class="btn btn-primary mt-2">Crear primera minuta</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

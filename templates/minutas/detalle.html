@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}{{ minuta.titulo }} · Minutas{% endblock %}
+{% block page_title %}
+  <a href="/minutas" class="text-decoration-none text-muted small me-2">
+    <i class="bi bi-arrow-left"></i> Minutas
+  </a>
+  {{ minuta.fecha.strftime('%d/%m/%Y') }} · {{ minuta.cliente.nombre }}
+{% endblock %}
+{% block topbar_actions %}
+  {% if current_user.rol == "admin" %}
+  <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalEliminar">
+    <i class="bi bi-trash me-1"></i>Eliminar
+  </button>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- Encabezado minuta -->
+<div class="card mb-4" style="border-left: 4px solid #3b82f6">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-8">
+        <h5 class="fw-bold text-dark mb-1">{{ minuta.titulo }}</h5>
+        <div class="d-flex flex-wrap gap-3 small text-muted mt-2">
+          <span><i class="bi bi-building me-1"></i><strong>{{ minuta.cliente.nombre }}</strong></span>
+          <span><i class="bi bi-calendar-event me-1"></i>{{ minuta.fecha.strftime('%d de %B de %Y') }}</span>
+          <span><i class="bi bi-person me-1"></i>{{ minuta.creador.nombre if minuta.creador else '—' }}</span>
+        </div>
+        {% if minuta.participantes %}
+        <div class="mt-2 small">
+          <span class="text-muted"><i class="bi bi-people me-1"></i>Participantes:</span>
+          <span>{{ minuta.participantes }}</span>
+        </div>
+        {% endif %}
+      </div>
+      <div class="col-md-4 text-md-end">
+        <span class="badge bg-primary-subtle text-primary fs-6">{{ minuta.temas|length }} proyecto(s) tratado(s)</span>
+      </div>
+    </div>
+    {% if minuta.resumen %}
+    <hr class="my-3">
+    <div class="small text-dark"><strong>Resumen general:</strong><br>{{ minuta.resumen }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Temas / Proyectos tratados -->
+<div class="row g-3">
+  {% for tema in minuta.temas %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div>
+          <a href="/proyectos/{{ tema.proyecto.id }}" class="fw-bold text-primary text-decoration-none">
+            <i class="bi bi-folder2-open me-2"></i>{{ tema.proyecto.codigo }}
+          </a>
+          <span class="text-muted ms-2">{{ tema.proyecto.nombre[:80] }}{% if tema.proyecto.nombre|length > 80 %}…{% endif %}</span>
+        </div>
+        <span class="badge" style="background:#eff6ff;color:#1d4ed8">{{ tema.proyecto.tipo_proyecto }}</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="{{ 'col-md-6' if tema.acuerdos else 'col-12' }}">
+            <div class="small text-muted fw-semibold mb-1"><i class="bi bi-chat-text me-1"></i>Lo tratado</div>
+            <div style="white-space:pre-wrap">{{ tema.lo_tratado }}</div>
+          </div>
+          {% if tema.acuerdos %}
+          <div class="col-md-6">
+            <div class="small text-muted fw-semibold mb-1"><i class="bi bi-check2-all me-1 text-success"></i>Acuerdos / Compromisos</div>
+            <div style="white-space:pre-wrap" class="border-start border-success ps-3">{{ tema.acuerdos }}</div>
+          </div>
+          {% endif %}
+        </div>
+        {% if tema.responsable %}
+        <div class="mt-2 small text-muted">
+          <i class="bi bi-person-check me-1"></i>Responsable: <strong>{{ tema.responsable.nombre }}</strong>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Modal eliminar -->
+{% if current_user.rol == "admin" %}
+<div class="modal fade" id="modalEliminar" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold text-danger"><i class="bi bi-trash me-2"></i>Eliminar Minuta</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-3">
+        <p class="mb-1">¿Eliminar esta minuta?</p>
+        <p class="small text-muted">Los comentarios ya registrados en los proyectos <strong>no se eliminarán</strong>.</p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post" action="/minutas/{{ minuta.id }}/eliminar" class="d-inline">
+          <button type="submit" class="btn btn-danger btn-sm fw-semibold">Eliminar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
