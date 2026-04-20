@@ -215,44 +215,120 @@
   <!-- ── BITÁCORA ── -->
   <div class="col-lg-5" id="bitacora">
     <div class="card h-100">
-      <div class="card-header fw-bold text-dark">
-        <i class="bi bi-journal-text me-2 text-primary"></i>Bitácora del Proyecto
+      <div class="card-header fw-bold text-dark d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-journal-text me-2 text-primary"></i>Notas y Comentarios</span>
+        {% set notas = proyecto.comentarios | selectattr('tipo_registro', 'eq', 'comentario') | list %}
+        <span class="badge bg-secondary">{{ notas | length }}</span>
       </div>
-      <div class="card-body" style="max-height:520px; overflow-y:auto;">
-        {% if proyecto.comentarios %}
-          {% for c in proyecto.comentarios %}
+
+      <!-- Documentos del proyecto (sin comentario) -->
+      {% set docs_proyecto = proyecto.documentos | selectattr('comentario_id', 'none') | list %}
+      {% if docs_proyecto %}
+      <div class="px-3 pt-3 pb-1">
+        <div class="small text-muted fw-semibold mb-1"><i class="bi bi-paperclip me-1"></i>Documentos del proyecto</div>
+        {% for d in docs_proyecto %}
+        <a href="/uploads/{{ d.nombre_archivo }}" target="_blank"
+           class="d-inline-flex align-items-center gap-1 me-2 mb-1 text-decoration-none small"
+           style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:2px 10px;color:#1d4ed8">
+          <i class="bi bi-file-earmark-pdf"></i>
+          <span>{{ d.nombre_original }}</span>
+          <span class="text-muted" style="font-size:.7rem">· {{ d.tipo | replace('_',' ') | title }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      <hr class="mx-3 my-1">
+      {% endif %}
+
+      <div class="card-body p-3" style="max-height:460px; overflow-y:auto;">
+        {% set notas = proyecto.comentarios | selectattr('tipo_registro', 'eq', 'comentario') | list %}
+        {% if notas %}
+          {% for c in notas %}
           <div class="bitacora-item">
-            <div class="bitacora-avatar {{ 'sistema' if c.tipo_registro == 'sistema' else 'cambio' if c.tipo_registro == 'cambio_estado' else '' }}">
-              {{ c.usuario.nombre[0] | upper }}
-            </div>
-            <div>
+            <div class="bitacora-avatar">{{ c.usuario.nombre[0] | upper }}</div>
+            <div style="min-width:0;flex:1">
               <div class="bitacora-texto">
-                <strong>{{ c.usuario.nombre }}</strong>
-                {% if c.tipo_registro == 'cambio_estado' %}
-                  <span class="badge" style="background:#fef3c7; color:#92400e; font-size:.65rem">cambio estado</span>
-                {% elif c.tipo_registro == 'sistema' %}
-                  <span class="badge" style="background:#eff6ff; color:#1e40af; font-size:.65rem">sistema</span>
-                {% endif %}
-                <br>{{ c.texto }}
+                <strong>{{ c.usuario.nombre }}</strong><br>
+                <span style="white-space:pre-wrap">{{ c.texto }}</span>
               </div>
+              {% if c.documentos %}
+              <div class="mt-1">
+                {% for d in c.documentos %}
+                <a href="/uploads/{{ d.nombre_archivo }}" target="_blank"
+                   class="d-inline-flex align-items-center gap-1 me-1 text-decoration-none small"
+                   style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:2px 9px;color:#15803d">
+                  <i class="bi bi-file-earmark-pdf"></i>
+                  {{ d.nombre_original[:35] }}{% if d.nombre_original|length > 35 %}…{% endif %}
+                  <span style="font-size:.68rem;opacity:.7">{{ d.tipo | replace('_',' ') | title }}</span>
+                </a>
+                {% endfor %}
+              </div>
+              {% endif %}
               <div class="bitacora-fecha">{{ c.created_at.strftime('%d %b %Y, %H:%M') }}</div>
             </div>
           </div>
           {% endfor %}
         {% else %}
-          <div class="text-center py-4 text-muted small">Aún no hay registros en la bitácora</div>
+          <div class="text-center py-4 text-muted small">
+            <i class="bi bi-journal d-block display-6 mb-2"></i>
+            Sin notas aún
+          </div>
+        {% endif %}
+
+        <!-- Historial de cambios colapsable -->
+        {% set historial = proyecto.comentarios | rejectattr('tipo_registro', 'eq', 'comentario') | list %}
+        {% if historial %}
+        <div class="border-top mt-3 pt-2">
+          <button class="btn btn-link btn-sm text-muted p-0 d-flex align-items-center gap-1"
+                  data-bs-toggle="collapse" data-bs-target="#historialCambios">
+            <i class="bi bi-clock-history"></i>
+            Historial de cambios ({{ historial | length }})
+            <i class="bi bi-chevron-down" style="font-size:.7rem"></i>
+          </button>
+          <div class="collapse mt-2" id="historialCambios">
+            {% for c in historial %}
+            <div class="d-flex gap-2 align-items-start py-1 border-bottom border-light">
+              <div class="bitacora-avatar sistema" style="width:24px;height:24px;font-size:.65rem;flex-shrink:0">
+                {{ c.usuario.nombre[0] | upper }}
+              </div>
+              <div style="min-width:0">
+                <div class="small text-muted" style="white-space:pre-wrap">{{ c.texto }}</div>
+                <div style="font-size:.7rem;color:#9ca3af">{{ c.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
         {% endif %}
       </div>
 
-      <!-- Agregar comentario -->
-      <div class="card-footer bg-white border-top pt-3">
-        <form method="post" action="/proyectos/{{ proyecto.id }}/comentar">
-          <div class="input-group">
-            <textarea name="texto" class="form-control form-control-sm" rows="2"
-                      placeholder="Agregar nota o comentario…" required></textarea>
+      <!-- Agregar comentario / nota -->
+      <div class="card-footer bg-white border-top pt-3 pb-3">
+        <form method="post" action="/proyectos/{{ proyecto.id }}/comentar" enctype="multipart/form-data" id="formComentario">
+          <textarea name="texto" class="form-control form-control-sm" rows="2"
+                    placeholder="Agregar nota o comentario…" required></textarea>
+
+          <!-- Adjuntar archivos -->
+          <div class="mt-2" id="adjuntoSection">
+            <div class="d-flex align-items-center gap-2">
+              <label class="btn btn-outline-secondary btn-sm mb-0" for="inputArchivos" style="cursor:pointer">
+                <i class="bi bi-paperclip me-1"></i>Adjuntar
+              </label>
+              <input type="file" id="inputArchivos" name="archivos" class="d-none"
+                     multiple accept=".pdf,.doc,.docx,.xls,.xlsx">
+              <div id="fileList" class="small text-muted"></div>
+            </div>
+            <div id="tipoDocRow" class="mt-1 d-none">
+              <select name="tipo_doc" class="form-select form-select-sm" style="width:200px">
+                <option value="otro">Otro documento</option>
+                <option value="propuesta">Propuesta</option>
+                <option value="orden_compra">Orden de Compra</option>
+                <option value="contrato">Contrato</option>
+              </select>
+            </div>
           </div>
+
           <button type="submit" class="btn btn-primary btn-sm w-100 mt-2 fw-semibold">
-            <i class="bi bi-send me-1"></i>Agregar a bitácora
+            <i class="bi bi-send me-1"></i>Agregar nota
           </button>
         </form>
       </div>
@@ -516,5 +592,22 @@ document.getElementById('selectRespTipo').addEventListener('change', function() 
   document.getElementById('divRespUsuario').classList.toggle('d-none', !esSigma);
   document.getElementById('divRespCliente').classList.toggle('d-none', esSigma);
 });
+
+// Adjuntar archivos en bitácora
+const inputArchivos = document.getElementById('inputArchivos');
+if (inputArchivos) {
+  inputArchivos.addEventListener('change', function() {
+    const fileList = document.getElementById('fileList');
+    const tipoDocRow = document.getElementById('tipoDocRow');
+    if (this.files.length > 0) {
+      const nombres = Array.from(this.files).map(f => f.name).join(', ');
+      fileList.textContent = nombres;
+      tipoDocRow.classList.remove('d-none');
+    } else {
+      fileList.textContent = '';
+      tipoDocRow.classList.add('d-none');
+    }
+  });
+}
 </script>
 {% endblock %}

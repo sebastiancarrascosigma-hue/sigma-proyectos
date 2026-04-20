@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Request, Depends, Form
+from fastapi import APIRouter, Request, Depends, Form, File, UploadFile
 from fastapi.responses import RedirectResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
+from typing import List, Optional
 from database import get_db
 from templates_config import templates
+from utils.upload import guardar_archivo, eliminar_archivo
 import models, auth
 
 router = APIRouter(prefix="/proyectos")
@@ -91,6 +93,8 @@ async def nuevo_submit(
     fecha_inicio: str = Form(...),
     fecha_estimada_cierre: str = Form(""),
     responsable_id: int = Form(...),
+    archivos: List[UploadFile] = File(default=[]),
+    tipos_doc: List[str] = Form(default=[]),
     db: Session = Depends(get_db)
 ):
     user = auth.get_current_user(request, db)
@@ -128,6 +132,22 @@ async def nuevo_submit(
         tipo_registro="sistema",
     )
     db.add(comentario)
+    db.flush()
+
+    # Guardar documentos iniciales
+    for i, archivo in enumerate(archivos):
+        if archivo and archivo.filename:
+            tipo = tipos_doc[i] if i < len(tipos_doc) else "otro"
+            nombre_guardado = await guardar_archivo(archivo)
+            db.add(models.Documento(
+                proyecto_id=proyecto.id,
+                comentario_id=None,
+                nombre_original=archivo.filename,
+                nombre_archivo=nombre_guardado,
+                tipo=tipo,
+                uploaded_by=user.id,
+            ))
+
     db.commit()
 
     request.session["flash"] = {"tipo": "success", "texto": f"Proyecto '{codigo}' creado exitosamente."}
@@ -268,6 +288,8 @@ async def eliminar(proyecto_id: int, request: Request, db: Session = Depends(get
         return RedirectResponse("/proyectos", status_code=302)
     proyecto = db.query(models.Proyecto).filter(models.Proyecto.id == proyecto_id).first()
     if proyecto:
+        for doc in proyecto.documentos:
+            eliminar_archivo(doc.nombre_archivo)
         codigo = proyecto.codigo
         db.delete(proyecto)
         db.commit()
@@ -280,6 +302,8 @@ async def agregar_comentario(
     proyecto_id: int,
     request: Request,
     texto: str = Form(...),
+    tipo_doc: str = Form("otro"),
+    archivos: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db)
 ):
     user = auth.get_current_user(request, db)
@@ -288,12 +312,27 @@ async def agregar_comentario(
 
     proyecto = db.query(models.Proyecto).filter(models.Proyecto.id == proyecto_id).first()
     if proyecto and texto.strip():
-        db.add(models.Comentario(
+        comentario = models.Comentario(
             proyecto_id=proyecto_id,
             usuario_id=user.id,
             texto=texto.strip(),
             tipo_registro="comentario",
-        ))
+        )
+        db.add(comentario)
+        db.flush()
+
+        for archivo in archivos:
+            if archivo and archivo.filename:
+                nombre_guardado = await guardar_archivo(archivo)
+                db.add(models.Documento(
+                    proyecto_id=proyecto_id,
+                    comentario_id=comentario.id,
+                    nombre_original=archivo.filename,
+                    nombre_archivo=nombre_guardado,
+                    tipo=tipo_doc,
+                    uploaded_by=user.id,
+                ))
+
         proyecto.updated_at = datetime.utcnow()
         db.commit()
 

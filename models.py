@@ -75,6 +75,7 @@ class Proyecto(Base):
     responsable = relationship("Usuario", back_populates="proyectos_responsable", foreign_keys=[responsable_id])
     actividades = relationship("Actividad", back_populates="proyecto", cascade="all, delete-orphan", order_by="Actividad.fecha_limite")
     comentarios = relationship("Comentario", back_populates="proyecto", cascade="all, delete-orphan", order_by="Comentario.created_at.desc()")
+    documentos  = relationship("Documento",  back_populates="proyecto", cascade="all, delete-orphan", order_by="Documento.created_at.desc()")
 
 
 class Actividad(Base):
@@ -176,3 +177,22 @@ class Comentario(Base):
     proyecto = relationship("Proyecto", back_populates="comentarios")
     actividad = relationship("Actividad", back_populates="comentarios")
     usuario = relationship("Usuario", back_populates="comentarios")
+    documentos = relationship("Documento", back_populates="comentario",
+                              primaryjoin="Comentario.id == foreign(Documento.comentario_id)")
+
+
+class Documento(Base):
+    __tablename__ = "documentos"
+    id = Column(Integer, primary_key=True, index=True)
+    proyecto_id = Column(Integer, ForeignKey("proyectos.id", ondelete="CASCADE"), nullable=False)
+    comentario_id = Column(Integer, ForeignKey("comentarios.id", ondelete="SET NULL"), nullable=True)
+    nombre_original = Column(String(300), nullable=False)
+    nombre_archivo = Column(String(300), nullable=False)   # UUID-based stored filename
+    tipo = Column(String(30), default="otro")              # propuesta / orden_compra / contrato / otro
+    uploaded_by = Column(Integer, ForeignKey("usuarios.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    proyecto = relationship("Proyecto", back_populates="documentos")
+    comentario = relationship("Comentario", back_populates="documentos",
+                              primaryjoin="Documento.comentario_id == foreign(Comentario.id)")
+    uploader = relationship("Usuario", foreign_keys=[uploaded_by])

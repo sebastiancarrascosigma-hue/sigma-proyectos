@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -11,6 +12,11 @@ app.add_middleware(SessionMiddleware, secret_key="sigma-session-key-2026")
 models.Base.metadata.create_all(bind=database.engine)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Directorio de archivos subidos (persistente en HF Spaces si UPLOAD_DIR=/data/uploads)
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 app.include_router(auth_router.router)
 app.include_router(dashboard.router)
