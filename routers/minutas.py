@@ -7,7 +7,7 @@ from typing import List
 from database import get_db
 from templates_config import templates
 import models, auth
-from utils.email_sender import enviar_minuta
+from utils.email_sender import enviar_minuta, enviar_notificacion_interna
 
 router = APIRouter(prefix="/minutas")
 
@@ -285,6 +285,34 @@ async def editar_submit(
 
     db.commit()
     request.session["flash"] = {"tipo": "success", "texto": "Minuta actualizada."}
+    return RedirectResponse(f"/minutas/{minuta_id}", status_code=302)
+
+
+@router.post("/{minuta_id}/notificar")
+async def notificar_equipo(minuta_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    minuta = db.query(models.Minuta).filter(models.Minuta.id == minuta_id).first()
+    if not minuta:
+        return RedirectResponse("/minutas", status_code=302)
+
+    # Enviar a todos los usuarios activos del sistema (equipo Sigma)
+    usuarios_sigma = db.query(models.Usuario).filter(
+        models.Usuario.activo == True,
+        models.Usuario.email != None,
+        models.Usuario.email != "",
+    ).all()
+    emails = [u.email for u in usuarios_sigma if u.email and u.email.strip()]
+
+    ok, mensaje = enviar_notificacion_interna(minuta, emails)
+    if ok:
+        minuta.notificacion_enviada = True
+        db.commit()
+        request.session["flash"] = {"tipo": "success", "texto": mensaje}
+    else:
+        request.session["flash"] = {"tipo": "danger", "texto": mensaje}
+
     return RedirectResponse(f"/minutas/{minuta_id}", status_code=302)
 
 

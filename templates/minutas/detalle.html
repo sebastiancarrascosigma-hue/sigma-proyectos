@@ -10,18 +10,35 @@
     <i class="bi bi-pencil me-1"></i>Editar
   </a>
   {% endif %}
+
+  <!-- Notificación interna al equipo Sigma -->
+  {% if not minuta.notificacion_enviada %}
+  <form method="post" action="/minutas/{{ minuta.id }}/notificar" class="d-inline">
+    <button type="submit" class="btn btn-warning btn-sm fw-semibold"
+            onclick="return confirm('¿Notificar al equipo Sigma para que revisen esta minuta?')">
+      <i class="bi bi-people me-1"></i>Notificar equipo
+    </button>
+  </form>
+  {% else %}
+  <span class="badge bg-warning-subtle text-warning px-3 py-2">
+    <i class="bi bi-people me-1"></i>Equipo notificado
+  </span>
+  {% endif %}
+
+  <!-- Envío al cliente con PDF -->
   {% if not minuta.email_enviado and minuta.participantes %}
   <form method="post" action="/minutas/{{ minuta.id }}/enviar" class="d-inline">
     <button type="submit" class="btn btn-primary btn-sm fw-semibold"
-            onclick="return confirm('¿Enviar la minuta por email a {{ minuta.participantes|selectattr("email")|list|length }} participante(s)?')">
-      <i class="bi bi-send me-1"></i>Enviar por email
+            onclick="return confirm('¿Enviar la minuta con PDF adjunto a {{ minuta.participantes|selectattr("email")|list|length }} participante(s)?')">
+      <i class="bi bi-send me-1"></i>Enviar al cliente
     </button>
   </form>
   {% elif minuta.email_enviado %}
   <span class="badge bg-success-subtle text-success px-3 py-2">
-    <i class="bi bi-check-circle me-1"></i>Email enviado
+    <i class="bi bi-check-circle me-1"></i>Enviada al cliente
   </span>
   {% endif %}
+
   {% if current_user.rol == "admin" %}
   <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalEliminar">
     <i class="bi bi-trash"></i>

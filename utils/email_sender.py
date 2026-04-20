@@ -2,11 +2,79 @@
 import os, smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
-SMTP_HOST     = os.getenv("SMTP_HOST", "smtp.office365.com")
-SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
-EMAIL_SENDER  = os.getenv("EMAIL_SENDER", "")
+SMTP_HOST      = os.getenv("SMTP_HOST", "smtp.office365.com")
+SMTP_PORT      = int(os.getenv("SMTP_PORT", "587"))
+EMAIL_SENDER   = os.getenv("EMAIL_SENDER", "")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
+APP_URL        = os.getenv("APP_URL", "https://sebas1989-sigma-proyectos.hf.space")
+
+
+def enviar_notificacion_interna(minuta, emails_sigma: list[str]) -> tuple[bool, str]:
+    """
+    Notifica al equipo Sigma que la minuta está lista para revisión.
+    Envía un email simple con el resumen y un link a la app.
+    """
+    if not EMAIL_SENDER or not EMAIL_PASSWORD:
+        return False, "Credenciales de email no configuradas."
+    if not emails_sigma:
+        return False, "No hay usuarios Sigma con email para notificar."
+
+    asunto = f"[Para revisión] Minuta {minuta.fecha.strftime('%d/%m/%Y')} · {minuta.cliente.nombre}"
+    url    = f"{APP_URL}/minutas/{minuta.id}"
+
+    temas_lista = "".join(
+        f'<li style="margin-bottom:6px"><strong style="color:#1d4ed8">{t.proyecto.codigo}</strong> — '
+        f'{t.lo_tratado[:120]}{"…" if len(t.lo_tratado) > 120 else ""}</li>'
+        for t in minuta.temas
+    )
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:0;background:#f9fafb">
+<div style="max-width:580px;margin:30px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+  <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:24px 32px">
+    <div style="color:#fef3c7;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Sigma Energía SpA · Revisión interna</div>
+    <h1 style="color:#fff;margin:6px 0 4px;font-size:20px;font-weight:700">Minuta lista para revisión</h1>
+    <div style="color:#fef9c3;font-size:13px">{minuta.titulo}</div>
+  </div>
+  <div style="padding:24px 32px">
+    <p style="color:#374151;font-size:14px;margin-top:0">
+      <strong>{minuta.creador.nombre if minuta.creador else "Un compañero"}</strong> ha creado una nueva minuta
+      del <strong>{minuta.fecha.strftime("%d/%m/%Y")}</strong> para el cliente
+      <strong>{minuta.cliente.nombre}</strong>. Por favor revísala, complementa o agrega observaciones antes
+      de enviarla al cliente.
+    </p>
+    {"<p style='font-size:13px;color:#6b7280;margin-bottom:4px'><strong>Proyectos tratados:</strong></p><ul style='font-size:13px;color:#374151;padding-left:20px'>" + temas_lista + "</ul>" if minuta.temas else ""}
+    <div style="text-align:center;margin:24px 0">
+      <a href="{url}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;
+         padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px">
+        Ver minuta en la app →
+      </a>
+    </div>
+  </div>
+  <div style="padding:14px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center">
+    Este correo fue generado automáticamente por Sigma Proyectos · Sigma Energía SpA
+  </div>
+</div>
+</body></html>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = asunto
+    msg["From"]    = EMAIL_SENDER
+    msg["To"]      = ", ".join(emails_sigma)
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_SENDER, emails_sigma, msg.as_string())
+        return True, f"Notificación enviada a {len(emails_sigma)} persona(s) del equipo Sigma."
+    except Exception as e:
+        return False, f"Error al enviar notificación: {e}"
 
 
 def enviar_minuta(minuta, destinatarios: list[str]) -> tuple[bool, str]:
@@ -22,11 +90,27 @@ def enviar_minuta(minuta, destinatarios: list[str]) -> tuple[bool, str]:
     asunto = f"Minuta {minuta.fecha.strftime('%d/%m/%Y')} · {minuta.cliente.nombre} · {minuta.titulo}"
     html   = _construir_html(minuta)
 
-    msg = MIMEMultipart("alternative")
+    msg = MIMEMultipart("mixed")
     msg["Subject"] = asunto
     msg["From"]    = EMAIL_SENDER
     msg["To"]      = ", ".join(destinatarios)
-    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    # Parte HTML
+    alternativa = MIMEMultipart("alternative")
+    alternativa.attach(MIMEText(html, "html", "utf-8"))
+    msg.attach(alternativa)
+
+    # Adjunto PDF (si weasyprint está disponible)
+    try:
+        from utils.pdf_generator import generar_pdf_minuta
+        pdf_bytes = generar_pdf_minuta(minuta)
+        if pdf_bytes:
+            nombre_pdf = f"Minuta_{minuta.fecha.strftime('%Y%m%d')}_{minuta.cliente.nombre.replace(' ', '_')}.pdf"
+            adjunto = MIMEApplication(pdf_bytes, _subtype="pdf")
+            adjunto.add_header("Content-Disposition", "attachment", filename=nombre_pdf)
+            msg.attach(adjunto)
+    except Exception as _e:
+        print(f"[email] No se pudo adjuntar PDF: {_e}")
 
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:

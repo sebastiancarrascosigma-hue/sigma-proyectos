@@ -13,6 +13,7 @@ def run_migrations():
     stmts = [
         # minutas: columnas agregadas después de la creación inicial
         "ALTER TABLE minutas ADD COLUMN IF NOT EXISTS email_enviado BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE minutas ADD COLUMN IF NOT EXISTS notificacion_enviada BOOLEAN DEFAULT FALSE",
         "ALTER TABLE minutas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP",
         # minuta_temas: fecha_estimada_respuesta agregada después
         "ALTER TABLE minuta_temas ADD COLUMN IF NOT EXISTS fecha_estimada_respuesta DATE",

@@ -123,8 +123,9 @@ class Minuta(Base):
     titulo         = Column(String(300), nullable=False)
     fecha          = Column(DateTime, nullable=False)
     resumen        = Column(Text)
-    email_enviado  = Column(Boolean, default=False)
-    created_by     = Column(Integer, ForeignKey("usuarios.id"))
+    email_enviado         = Column(Boolean, default=False)
+    notificacion_enviada  = Column(Boolean, default=False)
+    created_by            = Column(Integer, ForeignKey("usuarios.id"))
     created_at     = Column(DateTime, default=datetime.utcnow)
     updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
