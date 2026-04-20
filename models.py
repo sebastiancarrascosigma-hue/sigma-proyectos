@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey, Date, desc
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -193,7 +193,7 @@ class Comentario(Base):
     actividad = relationship("Actividad", back_populates="comentarios")
     usuario = relationship("Usuario", back_populates="comentarios")
     documentos = relationship("Documento", back_populates="comentario",
-                              primaryjoin="Comentario.id == foreign(Documento.comentario_id)")
+                              foreign_keys="[Documento.comentario_id]")
 
 
 class Documento(Base):
@@ -209,5 +209,5 @@ class Documento(Base):
 
     proyecto = relationship("Proyecto", back_populates="documentos")
     comentario = relationship("Comentario", back_populates="documentos",
-                              primaryjoin="Documento.comentario_id == foreign(Comentario.id)")
+                              foreign_keys=[comentario_id])
     uploader = relationship("Usuario", foreign_keys=[uploaded_by])

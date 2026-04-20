@@ -14,9 +14,12 @@ models.Base.metadata.create_all(bind=database.engine)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Directorio de archivos subidos (persistente en HF Spaces si UPLOAD_DIR=/data/uploads)
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/tmp/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+try:
+    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+except Exception as _e:
+    print(f"[warn] No se pudo montar /uploads: {_e}")
 
 app.include_router(auth_router.router)
 app.include_router(dashboard.router)

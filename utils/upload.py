@@ -2,7 +2,7 @@
 import os, uuid
 from fastapi import UploadFile
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/tmp/uploads")
 TIPOS_ETIQUETA = {
     "propuesta": "Propuesta",
     "orden_compra": "Orden de Compra",
