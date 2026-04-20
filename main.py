@@ -6,7 +6,7 @@ import database, models
 
 from routers import auth_router, dashboard, clientes, proyectos, actividades, usuarios, correspondencia, minutas
 
-app = FastAPI(title="Sigma Proyectos")
+app = FastAPI(title="Sigma Proyectos", debug=True)
 app.add_middleware(SessionMiddleware, secret_key="sigma-session-key-2026")
 
 models.Base.metadata.create_all(bind=database.engine)
