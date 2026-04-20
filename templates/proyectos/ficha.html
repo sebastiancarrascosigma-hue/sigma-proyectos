@@ -15,6 +15,10 @@
     <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalFinalizar">
       <i class="bi bi-check-circle me-1"></i>Finalizar
     </button>
+    {% elif proyecto.estado == "Completado" %}
+    <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalReactivar">
+      <i class="bi bi-arrow-counterclockwise me-1"></i>Reactivar
+    </button>
     {% endif %}
     <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalEliminar">
       <i class="bi bi-trash me-1"></i>Eliminar
@@ -438,6 +442,34 @@
         <form method="post" action="/proyectos/{{ proyecto.id }}/finalizar" class="d-inline">
           <button type="submit" class="btn btn-success btn-sm fw-semibold">
             <i class="bi bi-check-lg me-1"></i>Confirmar
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal: Reactivar Proyecto -->
+{% if current_user.rol == "admin" and proyecto.estado == "Completado" %}
+<div class="modal fade" id="modalReactivar" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold text-warning">
+          <i class="bi bi-arrow-counterclockwise me-2"></i>Reactivar Proyecto
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-3">
+        <p class="mb-1">¿Volver a estado <strong>Activo</strong>?</p>
+        <p class="small text-muted mb-0">{{ proyecto.codigo }} · {{ proyecto.nombre[:50] }}</p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post" action="/proyectos/{{ proyecto.id }}/reactivar" class="d-inline">
+          <button type="submit" class="btn btn-warning btn-sm fw-semibold">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Reactivar
           </button>
         </form>
       </div>

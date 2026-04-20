@@ -240,6 +240,27 @@ async def finalizar(proyecto_id: int, request: Request, db: Session = Depends(ge
     return RedirectResponse(f"/proyectos/{proyecto_id}", status_code=302)
 
 
+@router.post("/{proyecto_id}/reactivar")
+async def reactivar(proyecto_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user or user.rol != "admin":
+        return RedirectResponse("/proyectos", status_code=302)
+    proyecto = db.query(models.Proyecto).filter(models.Proyecto.id == proyecto_id).first()
+    if proyecto and proyecto.estado == "Completado":
+        proyecto.estado = "Activo"
+        proyecto.fecha_cierre_real = None
+        proyecto.updated_at = datetime.utcnow()
+        db.add(models.Comentario(
+            proyecto_id=proyecto_id,
+            usuario_id=user.id,
+            texto=f"Proyecto reactivado (vuelto a Activo) por {user.nombre}.",
+            tipo_registro="cambio_estado",
+        ))
+        db.commit()
+        request.session["flash"] = {"tipo": "info", "texto": "Proyecto reactivado y vuelto a estado Activo."}
+    return RedirectResponse(f"/proyectos/{proyecto_id}", status_code=302)
+
+
 @router.post("/{proyecto_id}/eliminar")
 async def eliminar(proyecto_id: int, request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
