@@ -102,20 +102,33 @@ class Actividad(Base):
 
 class Minuta(Base):
     __tablename__ = "minutas"
-    id            = Column(Integer, primary_key=True, index=True)
-    cliente_id    = Column(Integer, ForeignKey("clientes.id"), nullable=False)
-    titulo        = Column(String(300), nullable=False)
-    fecha         = Column(DateTime, nullable=False)
-    participantes = Column(Text)
-    resumen       = Column(Text)
-    created_by    = Column(Integer, ForeignKey("usuarios.id"))
-    created_at    = Column(DateTime, default=datetime.utcnow)
-    updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id             = Column(Integer, primary_key=True, index=True)
+    cliente_id     = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    titulo         = Column(String(300), nullable=False)
+    fecha          = Column(DateTime, nullable=False)
+    resumen        = Column(Text)
+    email_enviado  = Column(Boolean, default=False)
+    created_by     = Column(Integer, ForeignKey("usuarios.id"))
+    created_at     = Column(DateTime, default=datetime.utcnow)
+    updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    cliente  = relationship("Cliente", back_populates="minutas")
-    creador  = relationship("Usuario", foreign_keys=[created_by])
-    temas    = relationship("MinutaTema", back_populates="minuta",
-                            cascade="all, delete-orphan", order_by="MinutaTema.id")
+    cliente       = relationship("Cliente", back_populates="minutas")
+    creador       = relationship("Usuario", foreign_keys=[created_by])
+    temas         = relationship("MinutaTema", back_populates="minuta",
+                                 cascade="all, delete-orphan", order_by="MinutaTema.id")
+    participantes = relationship("MinutaParticipante", back_populates="minuta",
+                                 cascade="all, delete-orphan", order_by="MinutaParticipante.id")
+
+
+class MinutaParticipante(Base):
+    __tablename__ = "minuta_participantes"
+    id        = Column(Integer, primary_key=True, index=True)
+    minuta_id = Column(Integer, ForeignKey("minutas.id"), nullable=False)
+    nombre    = Column(String(150), nullable=False)
+    email     = Column(String(150))
+    empresa   = Column(String(150))
+
+    minuta = relationship("Minuta", back_populates="participantes")
 
 
 class MinutaTema(Base):

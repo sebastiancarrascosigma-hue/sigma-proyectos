@@ -2,215 +2,311 @@
 {% block title %}Nueva Minuta · Sigma Proyectos{% endblock %}
 {% block page_title %}<i class="bi bi-journal-plus me-2 text-primary"></i>Nueva Minuta de Reunión{% endblock %}
 {% block topbar_actions %}
-  <a href="/minutas" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-left me-1"></i>Volver
-  </a>
+  <a href="/minutas" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Volver</a>
 {% endblock %}
 
 {% block content %}
-<form method="post" action="/minutas/nueva" id="formMinuta">
-<div class="row g-4">
+<!-- Tom Select -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
-  <!-- Columna izquierda: datos de la reunión -->
-  <div class="col-lg-4">
-    <div class="card">
-      <div class="card-header fw-bold text-dark">
-        <i class="bi bi-info-circle me-2 text-primary"></i>Datos de la Reunión
+<style>
+.minuta-doc { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+.minuta-header { background:linear-gradient(135deg,#1d4ed8,#3b82f6); padding:24px 28px; color:#fff; }
+.minuta-section { padding:20px 28px; border-bottom:1px solid #f3f4f6; }
+.minuta-section-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:12px; }
+.participante-tag { display:inline-flex; align-items:center; gap:6px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:20px; padding:4px 12px; font-size:.82rem; margin:3px; }
+.participante-tag .btn-remove { background:none; border:none; color:#93c5fd; cursor:pointer; padding:0; line-height:1; font-size:.9rem; }
+.participante-tag .btn-remove:hover { color:#dc2626; }
+.tema-card { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; margin-bottom:16px; }
+.tema-card-header { background:#f8fafc; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e5e7eb; }
+.tema-card-body { padding:16px; }
+</style>
+
+<form method="post" action="/minutas/nueva" id="formMinuta">
+<div class="minuta-doc shadow-sm">
+
+  <!-- ── Encabezado ── -->
+  <div class="minuta-header">
+    <div style="font-size:.7rem;font-weight:600;letter-spacing:.08em;opacity:.7;text-transform:uppercase">Sigma Energía SpA · Minuta de Reunión</div>
+    <div class="row g-3 mt-1">
+      <div class="col-md-5">
+        <label class="form-label text-white small mb-1">Cliente *</label>
+        <select name="cliente_id" id="selectCliente" class="form-select form-select-sm" required>
+          <option value="">Seleccionar cliente…</option>
+          {% for c in clientes %}
+          <option value="{{ c.id }}">{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
       </div>
-      <div class="card-body">
-        <div class="mb-3">
-          <label class="form-label">Cliente *</label>
-          <select name="cliente_id" id="selectCliente" class="form-select" required>
-            <option value="">Seleccionar cliente…</option>
-            {% for c in clientes %}
-            <option value="{{ c.id }}">{{ c.nombre }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Título / Asunto *</label>
-          <input type="text" name="titulo" class="form-control" required
-                 placeholder="Ej: Reunión mensual de seguimiento">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Fecha *</label>
-          <input type="date" name="fecha" class="form-control" required
-                 value="{{ hoy }}">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Participantes</label>
-          <input type="text" name="participantes" class="form-control"
-                 placeholder="Ej: Sebastián C., Pablo A., contacto cliente">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Resumen general</label>
-          <textarea name="resumen" class="form-control" rows="4"
-                    placeholder="Contexto general de la reunión…"></textarea>
-        </div>
+      <div class="col-md-4">
+        <label class="form-label text-white small mb-1">Asunto / Título *</label>
+        <input type="text" name="titulo" class="form-control form-control-sm" required
+               placeholder="Ej: Reunión mensual de seguimiento">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label text-white small mb-1">Fecha *</label>
+        <input type="date" name="fecha" class="form-control form-control-sm" value="{{ hoy }}" required>
       </div>
     </div>
   </div>
 
-  <!-- Columna derecha: proyectos tratados -->
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span class="fw-bold text-dark"><i class="bi bi-folder2-open me-2 text-primary"></i>Proyectos Tratados</span>
-        <button type="button" class="btn btn-outline-primary btn-sm" id="btnAgregarProyecto">
-          <i class="bi bi-plus-lg me-1"></i>Agregar Proyecto
-        </button>
+  <!-- ── Participantes ── -->
+  <div class="minuta-section">
+    <div class="minuta-section-title"><i class="bi bi-people me-1"></i>Participantes</div>
+    <div id="participantesContainer" class="mb-3"></div>
+    <!-- Agregar participante -->
+    <div class="d-flex gap-2 align-items-end flex-wrap" id="rowAgregarPart">
+      <div>
+        <input type="text" id="newPartNombre" class="form-control form-control-sm" placeholder="Nombre" style="width:180px">
       </div>
-      <div class="card-body" id="contenedorTemas">
-
-        <!-- Fila de proyecto (template) -->
-        <div class="tema-row border rounded p-3 mb-3" id="tema-0">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <span class="fw-semibold small text-primary">Proyecto 1</span>
-            <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-tema" style="display:none">
-              <i class="bi bi-trash"></i>
-            </button>
-          </div>
-          <div class="row g-2 mb-2">
-            <div class="col-md-7">
-              <label class="form-label small">Proyecto *</label>
-              <select name="proyecto_ids" class="form-select form-select-sm select-proyecto" required>
-                <option value="">Seleccionar proyecto…</option>
-                {% for p in proyectos %}
-                <option value="{{ p.id }}" data-cliente="{{ p.cliente_id }}">
-                  {{ p.codigo }} · {{ p.nombre[:50] }}{% if p.nombre|length > 50 %}…{% endif %}
-                </option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-5">
-              <label class="form-label small">Responsable del acuerdo</label>
-              <select name="responsable_ids" class="form-select form-select-sm">
-                <option value="">Sin asignar</option>
-                {% for u in usuarios %}
-                <option value="{{ u.id }}">{{ u.nombre }}</option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-          <div class="mb-2">
-            <label class="form-label small">Lo tratado *</label>
-            <textarea name="lo_tratados" class="form-control form-control-sm" rows="3" required
-                      placeholder="Describe qué se habló sobre este proyecto…"></textarea>
-          </div>
-          <div>
-            <label class="form-label small">Acuerdos / Compromisos</label>
-            <textarea name="acuerdos_list" class="form-control form-control-sm" rows="2"
-                      placeholder="Acuerdos o compromisos que quedaron de la reunión…"></textarea>
-          </div>
-        </div>
-
+      <div>
+        <input type="email" id="newPartEmail" class="form-control form-control-sm" placeholder="Email" style="width:200px">
       </div>
-      <div class="card-footer bg-white border-top">
-        <div class="small text-muted mb-3">
-          <i class="bi bi-info-circle me-1"></i>
-          Cada proyecto tratado quedará registrado automáticamente en su bitácora.
-        </div>
-        <button type="submit" class="btn btn-primary fw-semibold w-100">
-          <i class="bi bi-check-lg me-2"></i>Guardar Minuta
-        </button>
+      <div>
+        <input type="text" id="newPartEmpresa" class="form-control form-control-sm" placeholder="Empresa" style="width:150px">
       </div>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddPart">
+        <i class="bi bi-person-plus me-1"></i>Agregar
+      </button>
     </div>
+    <!-- Inputs ocultos para los participantes -->
+    <div id="partInputs"></div>
+  </div>
+
+  <!-- ── Resumen general ── -->
+  <div class="minuta-section">
+    <div class="minuta-section-title"><i class="bi bi-chat-text me-1"></i>Contexto / Resumen general</div>
+    <textarea name="resumen" class="form-control form-control-sm" rows="2"
+              placeholder="Contexto general de la reunión (opcional)…"></textarea>
+  </div>
+
+  <!-- ── Proyectos tratados ── -->
+  <div class="minuta-section" id="seccionTemas">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="minuta-section-title mb-0"><i class="bi bi-folder2-open me-1"></i>Proyectos Tratados</div>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddTema">
+        <i class="bi bi-plus-lg me-1"></i>Agregar Proyecto
+      </button>
+    </div>
+    <div id="contenedorTemas"></div>
+    <div id="sinTemas" class="text-center py-4 text-muted small">
+      <i class="bi bi-folder-plus d-block display-6 mb-2"></i>
+      Presiona "Agregar Proyecto" para registrar los temas tratados
+    </div>
+  </div>
+
+  <!-- ── Guardar ── -->
+  <div class="minuta-section bg-light d-flex justify-content-between align-items-center">
+    <div class="small text-muted">
+      <i class="bi bi-info-circle me-1"></i>Cada proyecto tratado quedará registrado en su bitácora al guardar.
+    </div>
+    <button type="submit" class="btn btn-primary fw-semibold px-4">
+      <i class="bi bi-floppy me-2"></i>Guardar Minuta
+    </button>
   </div>
 
 </div>
 </form>
+
+<!-- Template oculto para temas -->
+<template id="temaTemplate">
+  <div class="tema-card" data-tema-idx="__IDX__">
+    <div class="tema-card-header">
+      <div class="d-flex align-items-center gap-3 flex-grow-1">
+        <span class="fw-semibold small text-muted">Proyecto __NUM__</span>
+        <div style="min-width:320px;max-width:480px">
+          <select name="proyecto_ids" class="form-select form-select-sm select-proyecto" required></select>
+        </div>
+        <div style="min-width:180px">
+          <select name="responsable_ids" class="form-select form-select-sm select-responsable">
+            <option value="">Sin responsable</option>
+            {% for u in usuarios %}
+            <option value="{{ u.id }}">{{ u.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-danger btn-remove-tema ms-2">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+    <div class="tema-card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Lo tratado *</label>
+          <textarea name="lo_tratados" class="form-control form-control-sm" rows="4" required
+                    placeholder="¿Qué se habló sobre este proyecto?…"></textarea>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Acuerdos / Compromisos</label>
+          <textarea name="acuerdos_list" class="form-control form-control-sm" rows="4"
+                    placeholder="¿Qué quedó comprometido?…"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Proyectos por cliente (para filtrar)
-const clienteProyectos = {};
-{% for p in proyectos %}
-  if (!clienteProyectos[{{ p.cliente_id }}]) clienteProyectos[{{ p.cliente_id }}] = [];
-  clienteProyectos[{{ p.cliente_id }}].push({ id: {{ p.id }}, texto: "{{ p.codigo }} · {{ p.nombre[:50]|replace('"', '') }}" });
-{% endfor %}
+// ── Datos desde backend ────────────────────────────────────────────────────
+const proyectosData  = {{ proyectos_json | safe }};
+const clientesData   = {{ clientes_json | safe }};
+const usuarioActual  = { nombre: "{{ current_user.nombre }}", email: "{{ current_user.email }}", empresa: "Sigma Energía" };
 
-// Filtrar proyectos al cambiar cliente
-document.getElementById('selectCliente').addEventListener('change', function() {
-  const cid = parseInt(this.value);
-  document.querySelectorAll('.select-proyecto').forEach(sel => {
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">Seleccionar proyecto…</option>';
-    (clienteProyectos[cid] || []).forEach(p => {
-      const opt = new Option(p.texto, p.id);
-      if (p.id == prev) opt.selected = true;
-      sel.add(opt);
+// ── Estado de participantes ────────────────────────────────────────────────
+let participantes = [];
+
+function renderParticipantes() {
+  const cont = document.getElementById('participantesContainer');
+  cont.innerHTML = '';
+  participantes.forEach((p, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'participante-tag';
+    tag.innerHTML = `
+      <i class="bi bi-person-circle text-primary"></i>
+      <span class="fw-semibold">${p.nombre}</span>
+      ${p.empresa ? `<span class="text-muted">· ${p.empresa}</span>` : ''}
+      ${p.email ? `<span class="text-muted small">&lt;${p.email}&gt;</span>` : ''}
+      <button class="btn-remove" type="button" data-idx="${i}" title="Quitar">✕</button>
+    `;
+    cont.appendChild(tag);
+  });
+  // Inputs ocultos
+  const partInputs = document.getElementById('partInputs');
+  partInputs.innerHTML = '';
+  participantes.forEach(p => {
+    partInputs.insertAdjacentHTML('beforeend', `
+      <input type="hidden" name="part_nombres" value="${p.nombre}">
+      <input type="hidden" name="part_emails" value="${p.email || ''}">
+      <input type="hidden" name="part_empresas" value="${p.empresa || ''}">
+    `);
+  });
+  // Botones quitar
+  cont.querySelectorAll('.btn-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      participantes.splice(parseInt(btn.dataset.idx), 1);
+      renderParticipantes();
     });
   });
+}
+
+function addParticipante(nombre, email, empresa) {
+  nombre = nombre.trim();
+  if (!nombre) return;
+  if (participantes.some(p => p.nombre === nombre)) return;
+  participantes.push({ nombre, email: email.trim(), empresa: empresa.trim() });
+  renderParticipantes();
+}
+
+// Agregar participante manual
+document.getElementById('btnAddPart').addEventListener('click', () => {
+  addParticipante(
+    document.getElementById('newPartNombre').value,
+    document.getElementById('newPartEmail').value,
+    document.getElementById('newPartEmpresa').value
+  );
+  document.getElementById('newPartNombre').value = '';
+  document.getElementById('newPartEmail').value = '';
+  document.getElementById('newPartEmpresa').value = '';
+  document.getElementById('newPartNombre').focus();
 });
 
-// Clonar fila de proyecto
-let contador = 1;
-document.getElementById('btnAgregarProyecto').addEventListener('click', function() {
-  const template = document.getElementById('tema-0').cloneNode(true);
-  template.id = 'tema-' + contador;
-  template.querySelector('.fw-semibold').textContent = 'Proyecto ' + (contador + 1);
-  template.querySelector('.btn-eliminar-tema').style.display = 'block';
-
-  // Limpiar valores
-  template.querySelectorAll('select').forEach(s => s.value = '');
-  template.querySelectorAll('textarea').forEach(t => t.value = '');
-
-  // Aplicar filtro de cliente actual
-  const cid = parseInt(document.getElementById('selectCliente').value);
-  const sel = template.querySelector('.select-proyecto');
-  sel.innerHTML = '<option value="">Seleccionar proyecto…</option>';
-  (clienteProyectos[cid] || []).forEach(p => sel.add(new Option(p.texto, p.id)));
-
-  document.getElementById('contenedorTemas').appendChild(template);
-  contador++;
-
-  // Habilitar botones de eliminar en todos
-  actualizarBotonesEliminar();
+// Enter en campos de participante
+['newPartNombre','newPartEmail','newPartEmpresa'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnAddPart').click(); }
+  });
 });
 
-// Eliminar fila
-document.getElementById('contenedorTemas').addEventListener('click', function(e) {
-  const btn = e.target.closest('.btn-eliminar-tema');
-  if (btn) {
-    btn.closest('.tema-row').remove();
-    renumerarFilas();
-    actualizarBotonesEliminar();
+// Cambio de cliente → agregar contacto por defecto
+const tsCliente = new TomSelect('#selectCliente', { placeholder: 'Buscar cliente…' });
+document.getElementById('selectCliente').addEventListener('change', function() {
+  const cid = parseInt(this.value);
+  const c = clientesData[cid];
+  if (!c) return;
+  // Limpiar participantes del cliente anterior (los de empresa no Sigma)
+  participantes = participantes.filter(p => p.empresa === 'Sigma Energía');
+  if (c.contacto_nombre) {
+    addParticipante(c.contacto_nombre, c.contacto_email || '', c.nombre);
   }
+  actualizarSelectsProyecto();
 });
 
-function renumerarFilas() {
-  document.querySelectorAll('.tema-row').forEach((row, i) => {
-    row.querySelector('.fw-semibold').textContent = 'Proyecto ' + (i + 1);
+// ── Temas ──────────────────────────────────────────────────────────────────
+let temaCount = 0;
+const tomSelectInstances = {};
+
+function proyectosPorCliente() {
+  const cid = parseInt(document.getElementById('selectCliente').value) || null;
+  return Object.entries(proyectosData)
+    .filter(([id, p]) => !cid || p.cliente_id === cid)
+    .map(([id, p]) => ({ value: id, text: `${p.codigo} · ${p.nombre}` }));
+}
+
+function actualizarSelectsProyecto() {
+  const opts = proyectosPorCliente();
+  Object.values(tomSelectInstances).forEach(ts => {
+    ts.clearOptions();
+    ts.addOption(opts);
+    ts.refreshOptions(false);
   });
 }
 
-function actualizarBotonesEliminar() {
-  const filas = document.querySelectorAll('.tema-row');
-  filas.forEach((f, i) => {
-    f.querySelector('.btn-eliminar-tema').style.display = filas.length > 1 ? 'block' : 'none';
+document.getElementById('btnAddTema').addEventListener('click', () => {
+  const tmpl = document.getElementById('temaTemplate').innerHTML
+    .replace(/__IDX__/g, temaCount)
+    .replace(/__NUM__/g, temaCount + 1);
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = tmpl;
+  const card = wrapper.firstElementChild;
+  document.getElementById('contenedorTemas').appendChild(card);
+  document.getElementById('sinTemas').style.display = 'none';
+
+  // Tom Select para proyecto
+  const selProy = card.querySelector('.select-proyecto');
+  const ts = new TomSelect(selProy, {
+    options: proyectosPorCliente(),
+    placeholder: 'Buscar proyecto…',
+    onChange(val) {
+      const p = proyectosData[val];
+      if (!p) return;
+      // Agregar responsable a participantes
+      if (p.responsable_nombre) addParticipante(p.responsable_nombre, p.responsable_email, 'Sigma Energía');
+      // Pre-seleccionar responsable en el select
+      const selResp = card.querySelector('.select-responsable');
+      {% for u in usuarios %}
+      if ("{{ u.nombre }}" === p.responsable_nombre) selResp.value = "{{ u.id }}";
+      {% endfor %}
+    }
+  });
+  tomSelectInstances[temaCount] = ts;
+
+  // Tom Select para responsable
+  new TomSelect(card.querySelector('.select-responsable'), { placeholder: 'Sin responsable' });
+
+  // Botón eliminar
+  card.querySelector('.btn-remove-tema').addEventListener('click', () => {
+    card.remove();
+    if (!document.getElementById('contenedorTemas').children.length)
+      document.getElementById('sinTemas').style.display = '';
+    renumerarTemas();
+  });
+
+  temaCount++;
+});
+
+function renumerarTemas() {
+  document.querySelectorAll('.tema-card').forEach((c, i) => {
+    c.querySelector('.fw-semibold').textContent = `Proyecto ${i + 1}`;
   });
 }
 
-// Validar que se haya seleccionado cliente antes de enviar
-document.getElementById('formMinuta').addEventListener('submit', function(e) {
-  if (!document.getElementById('selectCliente').value) {
-    e.preventDefault();
-    alert('Debes seleccionar un cliente.');
-    return false;
-  }
-  // Verificar que cada fila tenga proyecto y lo tratado
-  let ok = true;
-  document.querySelectorAll('.tema-row').forEach(row => {
-    const sel = row.querySelector('.select-proyecto').value;
-    const txt = row.querySelector('textarea[name="lo_tratados"]').value.trim();
-    if (!sel || !txt) { ok = false; }
-  });
-  if (!ok) {
-    e.preventDefault();
-    alert('Cada proyecto debe tener seleccionado el proyecto y "Lo tratado".');
-    return false;
-  }
-});
+// Agregar usuario actual como participante por defecto
+addParticipante(usuarioActual.nombre, usuarioActual.email, usuarioActual.empresa);
 </script>
 {% endblock %}
