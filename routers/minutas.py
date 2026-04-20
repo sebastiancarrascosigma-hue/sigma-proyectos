@@ -86,6 +86,7 @@ async def nueva_submit(
     lo_tratados: List[str] = Form(default=[]),
     acuerdos_list: List[str] = Form(default=[]),
     responsable_ids: List[str] = Form(default=[]),
+    fechas_respuesta: List[str] = Form(default=[]),
     db: Session = Depends(get_db)
 ):
     user = auth.get_current_user(request, db)
@@ -120,6 +121,8 @@ async def nueva_submit(
         acuerdo = acuerdos_list[i].strip() if i < len(acuerdos_list) else ""
         resp_raw = responsable_ids[i] if i < len(responsable_ids) else ""
         resp_id = int(resp_raw) if resp_raw and resp_raw.isdigit() else None
+        fecha_raw = fechas_respuesta[i].strip() if i < len(fechas_respuesta) else ""
+        fecha_resp = datetime.strptime(fecha_raw, "%Y-%m-%d").date() if fecha_raw else None
 
         if not tratado:
             continue
@@ -130,6 +133,7 @@ async def nueva_submit(
             lo_tratado=tratado,
             acuerdos=acuerdo or None,
             responsable_id=resp_id,
+            fecha_estimada_respuesta=fecha_resp,
         ))
 
         # Bitácora del proyecto

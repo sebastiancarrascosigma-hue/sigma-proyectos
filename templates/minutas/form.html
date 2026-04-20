@@ -113,18 +113,10 @@
 <template id="temaTemplate">
   <div class="tema-card" data-tema-idx="__IDX__">
     <div class="tema-card-header">
-      <div class="d-flex align-items-center gap-3 flex-grow-1">
+      <div class="d-flex align-items-center gap-3 flex-grow-1 flex-wrap">
         <span class="fw-semibold small text-muted">Proyecto __NUM__</span>
-        <div style="min-width:320px;max-width:480px">
+        <div style="min-width:280px;max-width:420px">
           <select name="proyecto_ids" class="form-select form-select-sm select-proyecto" required></select>
-        </div>
-        <div style="min-width:180px">
-          <select name="responsable_ids" class="form-select form-select-sm select-responsable">
-            <option value="">Sin responsable</option>
-            {% for u in usuarios %}
-            <option value="{{ u.id }}">{{ u.nombre }}</option>
-            {% endfor %}
-          </select>
         </div>
       </div>
       <button type="button" class="btn btn-sm btn-outline-danger btn-remove-tema ms-2">
@@ -132,18 +124,48 @@
       </button>
     </div>
     <div class="tema-card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Lo tratado *</label>
-          <textarea name="lo_tratados" class="form-control form-control-sm" rows="4" required
-                    placeholder="¿Qué se habló sobre este proyecto?…"></textarea>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Acuerdos / Compromisos</label>
-          <textarea name="acuerdos_list" class="form-control form-control-sm" rows="4"
-                    placeholder="¿Qué quedó comprometido?…"></textarea>
-        </div>
-      </div>
+      <!-- Tabla estilo To-Do: lo tratado | acuerdo | responsable | fecha -->
+      <table class="w-100" style="border-collapse:separate;border-spacing:8px 0">
+        <thead>
+          <tr>
+            <th style="width:35%;font-size:.72rem;color:#9ca3af;font-weight:600;text-transform:uppercase;padding-bottom:6px">
+              <i class="bi bi-chat-text me-1"></i>Lo tratado *
+            </th>
+            <th style="width:35%;font-size:.72rem;color:#9ca3af;font-weight:600;text-transform:uppercase;padding-bottom:6px">
+              <i class="bi bi-check2-all me-1 text-success"></i>Acuerdo / Compromiso
+            </th>
+            <th style="width:18%;font-size:.72rem;color:#9ca3af;font-weight:600;text-transform:uppercase;padding-bottom:6px">
+              <i class="bi bi-person-check me-1"></i>Responsable
+            </th>
+            <th style="width:12%;font-size:.72rem;color:#9ca3af;font-weight:600;text-transform:uppercase;padding-bottom:6px">
+              <i class="bi bi-calendar-event me-1"></i>Fecha resp.
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="vertical-align:top">
+            <td>
+              <textarea name="lo_tratados" class="form-control form-control-sm" rows="4" required
+                        placeholder="¿Qué se habló?…"></textarea>
+            </td>
+            <td>
+              <textarea name="acuerdos_list" class="form-control form-control-sm" rows="4"
+                        placeholder="¿Qué quedó comprometido?…"></textarea>
+            </td>
+            <td>
+              <select name="responsable_ids" class="form-select form-select-sm select-responsable">
+                <option value="">Sin responsable</option>
+                {% for u in usuarios %}
+                <option value="{{ u.id }}">{{ u.nombre }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="date" name="fechas_respuesta" class="form-control form-control-sm">
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>

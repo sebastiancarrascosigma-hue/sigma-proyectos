@@ -11,10 +11,11 @@ def run_migrations():
     """Aplica columnas/tablas faltantes que create_all no agrega a tablas existentes."""
     from sqlalchemy import text
     stmts = [
-        # minutas: columna email_enviado agregada después de la creación inicial
+        # minutas: columnas agregadas después de la creación inicial
         "ALTER TABLE minutas ADD COLUMN IF NOT EXISTS email_enviado BOOLEAN DEFAULT FALSE",
         "ALTER TABLE minutas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP",
-        # minuta_participantes: sin cambios estructurales, pero por si acaso
+        # minuta_temas: fecha_estimada_respuesta agregada después
+        "ALTER TABLE minuta_temas ADD COLUMN IF NOT EXISTS fecha_estimada_respuesta DATE",
         # subactividades y documentos: create_all las crea si no existen
     ]
     with database.engine.connect() as conn:

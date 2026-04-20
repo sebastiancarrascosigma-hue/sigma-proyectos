@@ -155,6 +155,7 @@ class MinutaTema(Base):
     lo_tratado  = Column(Text, nullable=False)
     acuerdos    = Column(Text)
     responsable_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    fecha_estimada_respuesta = Column(Date, nullable=True)
 
     minuta      = relationship("Minuta", back_populates="temas")
     proyecto    = relationship("Proyecto")

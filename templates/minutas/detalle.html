@@ -47,38 +47,77 @@
     </div>
 
     <!-- Temas -->
-    {% for tema in minuta.temas %}
+    {% if minuta.temas %}
     <div class="card mb-3">
-      <div class="card-header d-flex align-items-center justify-content-between bg-white">
-        <div>
-          <a href="/proyectos/{{ tema.proyecto.id }}" class="fw-bold text-primary text-decoration-none">
-            <i class="bi bi-folder2-open me-2"></i>{{ tema.proyecto.codigo }}
-          </a>
-          <span class="text-muted ms-2 small">{{ tema.proyecto.nombre[:80] }}{% if tema.proyecto.nombre|length > 80 %}…{% endif %}</span>
-        </div>
-        <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.7rem">{{ tema.proyecto.tipo_proyecto }}</span>
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="{{ 'col-md-6' if tema.acuerdos else 'col-12' }}">
-            <div class="small fw-semibold text-muted mb-1"><i class="bi bi-chat-text me-1"></i>Lo tratado</div>
-            <div style="white-space:pre-wrap">{{ tema.lo_tratado }}</div>
-          </div>
-          {% if tema.acuerdos %}
-          <div class="col-md-6">
-            <div class="small fw-semibold text-muted mb-1"><i class="bi bi-check2-all me-1 text-success"></i>Acuerdos</div>
-            <div class="border-start border-success ps-3" style="white-space:pre-wrap">{{ tema.acuerdos }}</div>
-          </div>
-          {% endif %}
-        </div>
-        {% if tema.responsable %}
-        <div class="mt-2 small text-muted">
-          <i class="bi bi-person-check me-1"></i>Responsable: <strong>{{ tema.responsable.nombre }}</strong>
-        </div>
-        {% endif %}
+      <div class="table-responsive">
+        <table class="table mb-0" style="font-size:.85rem">
+          <thead style="background:#f8fafc">
+            <tr>
+              <th style="width:22%;padding:10px 14px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0">
+                <i class="bi bi-folder2-open me-1 text-primary"></i>Proyecto
+              </th>
+              <th style="width:28%;padding:10px 14px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0">
+                <i class="bi bi-chat-text me-1"></i>Lo Tratado
+              </th>
+              <th style="width:25%;padding:10px 14px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0">
+                <i class="bi bi-check2-all me-1 text-success"></i>Acuerdo / Compromiso
+              </th>
+              <th style="width:13%;padding:10px 14px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0">
+                <i class="bi bi-person-check me-1"></i>Responsable
+              </th>
+              <th style="width:12%;padding:10px 14px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0">
+                <i class="bi bi-calendar-event me-1"></i>Fecha Resp.
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tema in minuta.temas %}
+            <tr style="border-bottom:1px solid #f1f5f9;vertical-align:top">
+              <td style="padding:12px 14px">
+                <a href="/proyectos/{{ tema.proyecto.id }}" class="fw-semibold text-primary text-decoration-none d-block">
+                  {{ tema.proyecto.codigo }}
+                </a>
+                <span class="text-muted" style="font-size:.75rem">{{ tema.proyecto.nombre[:55] }}{% if tema.proyecto.nombre|length > 55 %}…{% endif %}</span>
+                <div class="mt-1">
+                  <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.65rem">{{ tema.proyecto.tipo_proyecto }}</span>
+                </div>
+              </td>
+              <td style="padding:12px 14px">
+                <div style="white-space:pre-wrap;color:#374151">{{ tema.lo_tratado }}</div>
+              </td>
+              <td style="padding:12px 14px">
+                {% if tema.acuerdos %}
+                <div class="border-start border-success ps-2" style="white-space:pre-wrap;color:#374151">{{ tema.acuerdos }}</div>
+                {% else %}
+                <span class="text-muted" style="font-size:.78rem">—</span>
+                {% endif %}
+              </td>
+              <td style="padding:12px 14px">
+                {% if tema.responsable %}
+                <div class="d-flex align-items-center gap-1">
+                  <div class="user-avatar" style="width:26px;height:26px;font-size:.7rem;flex-shrink:0">{{ tema.responsable.nombre[0]|upper }}</div>
+                  <span class="small">{{ tema.responsable.nombre.split()[0] }}</span>
+                </div>
+                {% else %}
+                <span class="text-muted" style="font-size:.78rem">—</span>
+                {% endif %}
+              </td>
+              <td style="padding:12px 14px">
+                {% if tema.fecha_estimada_respuesta %}
+                <span class="badge" style="background:#fef3c7;color:#92400e;font-size:.75rem">
+                  {{ tema.fecha_estimada_respuesta.strftime('%d/%m/%Y') }}
+                </span>
+                {% else %}
+                <span class="text-muted" style="font-size:.78rem">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
-    {% endfor %}
+    {% endif %}
   </div>
 
   <!-- Columna lateral: participantes -->
