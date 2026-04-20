@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}Correspondencia CEN · Sigma Proyectos{% endblock %}
+{% block page_title %}<i class="bi bi-envelope-open me-2 text-primary"></i>Correspondencia CEN{% endblock %}
+
+{% block content %}
+
+<!-- Stats rápidas -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-dark">{{ total_db }}</div>
+          <div class="stat-label">Total registros</div>
+        </div>
+        <div class="stat-icon" style="background:#eff6ff; color:#3b82f6">
+          <i class="bi bi-envelope-open"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-dark">{{ total }}</div>
+          <div class="stat-label">Resultados filtro</div>
+        </div>
+        <div class="stat-icon" style="background:#f0fdf4; color:#16a34a">
+          <i class="bi bi-funnel"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-dark">{{ con_pdf }}</div>
+          <div class="stat-label">Con PDF disponible</div>
+        </div>
+        <div class="stat-icon" style="background:#fef3c7; color:#d97706">
+          <i class="bi bi-file-earmark-pdf"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-num text-dark">{{ total_pages }}</div>
+          <div class="stat-label">Páginas (50 x pág.)</div>
+        </div>
+        <div class="stat-icon" style="background:#f5f3ff; color:#7c3aed">
+          <i class="bi bi-files"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="get" action="/correspondencia" id="formFiltro">
+      <div class="row g-2 align-items-end">
+        <!-- Buscador texto libre -->
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Búsqueda libre</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" name="q" class="form-control" value="{{ q }}"
+                   placeholder="Correlativo, empresa, referencia, materia…">
+          </div>
+        </div>
+        <!-- Rango fecha -->
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Desde</label>
+          <input type="date" name="desde" class="form-control form-control-sm" value="{{ desde }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Hasta</label>
+          <input type="date" name="hasta" class="form-control form-control-sm" value="{{ hasta }}">
+        </div>
+        <!-- Materia macro -->
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Materia</label>
+          <select name="materia_macro" class="form-select form-select-sm">
+            <option value="">Todas</option>
+            {% for m in materias %}
+            <option value="{{ m }}" {{ 'selected' if filtro_materia == m else '' }}>{{ m[:35] }}{% if m|length > 35 %}…{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- Estado -->
+        <div class="col-md-1">
+          <label class="form-label small fw-semibold">Estado</label>
+          <select name="estado" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for e in estados_unicos %}
+            <option value="{{ e }}" {{ 'selected' if filtro_estado == e else '' }}>{{ e[:20] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- Botones -->
+        <div class="col-md-1 d-flex gap-1">
+          <button type="submit" class="btn btn-primary btn-sm flex-fill">
+            <i class="bi bi-funnel"></i>
+          </button>
+          <a href="/correspondencia" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-lg"></i>
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Layout principal: tabla + visor PDF -->
+<div class="row g-3" id="layoutCorrespondencia">
+
+  <!-- Tabla -->
+  <div class="col-12" id="colTabla">
+    <div class="card">
+      <div class="card-body p-0">
+        {% if registros %}
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0" style="font-size:.825rem">
+            <thead>
+              <tr>
+                <th class="ps-3">Correlativo</th>
+                <th>Fecha</th>
+                <th>Empresa(s)</th>
+                <th>Remitente</th>
+                <th>Materia Macro</th>
+                <th>Materia Micro</th>
+                <th>Resp.</th>
+                <th>Estado</th>
+                <th class="text-center">PDF</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for r in registros %}
+            <tr class="carta-row {{ 'table-danger' if 'Error' in (r.estado or '') else 'table-warning' if r.estado == 'Sin PDF' else 'table-info' if 'Confidencial' in (r.estado or '') else '' }}"
+                data-id="{{ r.id }}"
+                data-correlativo="{{ r.correlativo }}"
+                data-fecha="{{ r.fecha.strftime('%d/%m/%Y') if r.fecha else '—' }}"
+                data-empresas="{{ r.empresas or '—' }}"
+                data-remitente="{{ r.remitente or '—' }}"
+                data-destinatario="{{ r.destinatario or '—' }}"
+                data-macro="{{ r.materia_macro or '—' }}"
+                data-micro="{{ r.materia_micro or '—' }}"
+                data-ref="{{ r.referencia or '—' }}"
+                data-respondida="{{ r.respondida or '—' }}"
+                data-estado="{{ r.estado or '—' }}"
+                data-pdf="{{ r.pdf_url or '' }}"
+                style="cursor:pointer">
+              <td class="ps-3 fw-semibold text-primary">{{ r.correlativo }}</td>
+              <td class="text-nowrap">{{ r.fecha.strftime('%d/%m/%Y') if r.fecha else '—' }}</td>
+              <td>
+                {% if r.empresas %}
+                  {% set emps = r.empresas.split(',') %}
+                  {{ emps[0].strip()[:30] }}{% if emps[0]|length > 30 %}…{% endif %}
+                  {% if emps|length > 1 %}<span class="badge bg-secondary ms-1">+{{ emps|length - 1 }}</span>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td>{{ (r.remitente or '—')[:35] }}{% if r.remitente and r.remitente|length > 35 %}…{% endif %}</td>
+              <td>
+                <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.7rem">
+                  {{ (r.materia_macro or '—')[:30] }}
+                </span>
+              </td>
+              <td>{{ (r.materia_micro or '—')[:45] }}{% if r.materia_micro and r.materia_micro|length > 45 %}…{% endif %}</td>
+              <td class="text-center">
+                {% if r.respondida == 'Sí' %}
+                  <span class="badge bg-success">Sí</span>
+                {% elif r.respondida == 'No' %}
+                  <span class="badge bg-danger">No</span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if r.estado == 'Descargado' %}
+                  <span class="badge bg-success-subtle text-success">Descargado</span>
+                {% elif r.estado == 'Sin PDF' %}
+                  <span class="badge bg-warning-subtle text-warning">Sin PDF</span>
+                {% elif r.estado and 'Confidencial' in r.estado %}
+                  <span class="badge bg-primary-subtle text-primary">Confidencial</span>
+                {% elif r.estado and 'Error' in r.estado %}
+                  <span class="badge bg-danger-subtle text-danger">Error</span>
+                {% elif r.estado %}
+                  <span class="badge bg-secondary-subtle text-secondary">{{ r.estado[:20] }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-center">
+                {% if r.pdf_url %}
+                  <i class="bi bi-file-earmark-pdf text-danger" title="PDF disponible"></i>
+                {% else %}
+                  <i class="bi bi-file-earmark text-muted" title="Sin PDF"></i>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if total_pages > 1 %}
+        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+          <small class="text-muted">{{ total }} registros · Página {{ page }} de {{ total_pages }}</small>
+          <div class="d-flex gap-1">
+            {% if page > 1 %}
+            <a href="?q={{ q }}&desde={{ desde }}&hasta={{ hasta }}&empresa={{ filtro_empresa }}&materia_macro={{ filtro_materia }}&estado={{ filtro_estado }}&page={{ page - 1 }}"
+               class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i></a>
+            {% endif %}
+            <span class="btn btn-sm btn-light disabled">{{ page }}</span>
+            {% if page < total_pages %}
+            <a href="?q={{ q }}&desde={{ desde }}&hasta={{ hasta }}&empresa={{ filtro_empresa }}&materia_macro={{ filtro_materia }}&estado={{ filtro_estado }}&page={{ page + 1 }}"
+               class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-right"></i></a>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-6">
+          <i class="bi bi-envelope-slash display-4 text-muted d-block mb-3"></i>
+          <h5 class="text-muted">No hay registros de correspondencia</h5>
+          <p class="text-muted small">Ejecuta el script de sincronización para cargar los datos.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Panel lateral: detalle + PDF viewer -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="panelDetalle" style="width:55%">
+  <div class="offcanvas-header border-bottom py-2">
+    <div>
+      <h6 class="offcanvas-title fw-bold text-primary mb-0" id="panelCorrelativo">—</h6>
+      <small class="text-muted" id="panelFecha">—</small>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body p-0 d-flex flex-column">
+
+    <!-- Metadatos -->
+    <div class="p-3 border-bottom bg-light" style="font-size:.825rem">
+      <div class="row g-2">
+        <div class="col-6">
+          <div class="text-muted small">Empresa(s)</div>
+          <div class="fw-semibold" id="panelEmpresas">—</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">Remitente</div>
+          <div id="panelRemitente">—</div>
+        </div>
+        <div class="col-12">
+          <div class="text-muted small">Destinatario</div>
+          <div id="panelDestinatario">—</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">Materia Macro</div>
+          <div id="panelMacro">—</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">Respondida</div>
+          <div id="panelRespondida">—</div>
+        </div>
+        <div class="col-12">
+          <div class="text-muted small">Materia Micro</div>
+          <div id="panelMicro">—</div>
+        </div>
+        <div class="col-12">
+          <div class="text-muted small">Referencia</div>
+          <div id="panelRef" class="small">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visor PDF -->
+    <div class="flex-grow-1 d-flex flex-column" id="areaPdf">
+      <div id="pdfDisponible" class="flex-grow-1 d-none flex-column">
+        <div class="px-3 py-2 d-flex justify-content-between align-items-center border-bottom">
+          <small class="fw-semibold text-dark"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Documento</small>
+          <a id="pdfDescarga" href="#" target="_blank" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-download me-1"></i>Abrir
+          </a>
+        </div>
+        <iframe id="pdfFrame" src="" class="flex-grow-1 border-0" style="min-height:500px"></iframe>
+      </div>
+      <div id="pdfNoDisponible" class="flex-grow-1 d-flex align-items-center justify-content-center flex-column text-muted">
+        <i class="bi bi-file-earmark-x display-4 mb-3"></i>
+        <p class="mb-1 fw-semibold">PDF no disponible</p>
+        <p class="small text-center px-4">Este documento aún no ha sido subido al sistema.<br>Ejecuta el script de carga de PDFs para habilitarlo.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const offcanvas = new bootstrap.Offcanvas(document.getElementById('panelDetalle'));
+
+document.querySelectorAll('.carta-row').forEach(row => {
+  row.addEventListener('click', function() {
+    const d = this.dataset;
+
+    document.getElementById('panelCorrelativo').textContent = d.correlativo;
+    document.getElementById('panelFecha').textContent = d.fecha;
+    document.getElementById('panelEmpresas').textContent = d.empresas;
+    document.getElementById('panelRemitente').textContent = d.remitente;
+    document.getElementById('panelDestinatario').textContent = d.destinatario;
+    document.getElementById('panelMacro').textContent = d.macro;
+    document.getElementById('panelMicro').textContent = d.micro;
+    document.getElementById('panelRef').textContent = d.ref;
+    document.getElementById('panelRespondida').textContent = d.respondida;
+
+    const pdfUrl = d.pdf;
+    if (pdfUrl) {
+      document.getElementById('pdfDisponible').classList.remove('d-none');
+      document.getElementById('pdfDisponible').classList.add('d-flex');
+      document.getElementById('pdfNoDisponible').classList.add('d-none');
+      document.getElementById('pdfFrame').src = pdfUrl;
+      document.getElementById('pdfDescarga').href = pdfUrl;
+    } else {
+      document.getElementById('pdfDisponible').classList.add('d-none');
+      document.getElementById('pdfDisponible').classList.remove('d-flex');
+      document.getElementById('pdfNoDisponible').classList.remove('d-none');
+      document.getElementById('pdfFrame').src = '';
+    }
+
+    // Limpiar fila seleccionada anterior
+    document.querySelectorAll('.carta-row.table-active').forEach(r => r.classList.remove('table-active'));
+    this.classList.add('table-active');
+
+    offcanvas.show();
+  });
+});
+</script>
+{% endblock %}

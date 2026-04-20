@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 import database, models
 
-from routers import auth_router, dashboard, clientes, proyectos, actividades, usuarios
+from routers import auth_router, dashboard, clientes, proyectos, actividades, usuarios, correspondencia
 
 app = FastAPI(title="Sigma Proyectos")
 app.add_middleware(SessionMiddleware, secret_key="sigma-session-key-2026")
@@ -18,6 +18,7 @@ app.include_router(clientes.router)
 app.include_router(proyectos.router)
 app.include_router(actividades.router)
 app.include_router(usuarios.router)
+app.include_router(correspondencia.router)
 
 
 @app.get("/")

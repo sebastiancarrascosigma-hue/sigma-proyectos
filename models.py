@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey, Date
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -97,6 +97,24 @@ class Actividad(Base):
     proyecto = relationship("Proyecto", back_populates="actividades")
     responsable_usuario = relationship("Usuario", back_populates="actividades_asignadas", foreign_keys=[responsable_usuario_id])
     comentarios = relationship("Comentario", back_populates="actividad")
+
+
+class Correspondencia(Base):
+    __tablename__ = "correspondencia"
+    id           = Column(Integer, primary_key=True, index=True)
+    correlativo  = Column(String(60), unique=True, nullable=False, index=True)
+    fecha        = Column(Date, nullable=True, index=True)
+    empresas     = Column(Text)
+    remitente    = Column(Text)
+    destinatario = Column(Text)
+    materia_macro = Column(String(300))
+    materia_micro = Column(Text)
+    referencia   = Column(Text)
+    respondida   = Column(String(20))
+    estado       = Column(String(100))
+    pdf_url      = Column(String(500), nullable=True)   # URL pública (Supabase Storage u otro)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+    updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Comentario(Base):

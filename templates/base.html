@@ -50,6 +50,11 @@
           <i class="bi bi-building"></i> Clientes
         </a>
       </li>
+      <li>
+        <a href="/correspondencia" class="{{ 'active' if '/correspondencia' in request.url.path else '' }}">
+          <i class="bi bi-envelope-open"></i> Correspondencia
+        </a>
+      </li>
       {% if current_user.rol == 'admin' %}
       <li><div class="sidebar-divider"></div></li>
       <li>
