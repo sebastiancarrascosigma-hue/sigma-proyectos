@@ -593,7 +593,91 @@ document.getElementById('selectRespTipo').addEventListener('change', function() 
   document.getElementById('divRespCliente').classList.toggle('d-none', esSigma);
 });
 
-// Adjuntar archivos en bitácora
+// ── Subtareas ──────────────────────────────────────────────────────────────
+async function toggleSubtarea(sid, actId, btn) {
+  const resp = await fetch(`/actividades/${actId}/subtarea/${sid}/toggle`, { method: 'POST' });
+  if (!resp.ok) return;
+  const data = await resp.json();
+  const txt = document.getElementById(`sub-txt-${sid}`);
+  if (data.completado) {
+    btn.classList.add('completada');
+    if (txt) { txt.style.textDecoration = 'line-through'; txt.style.color = '#9ca3af'; }
+  } else {
+    btn.classList.remove('completada');
+    if (txt) { txt.style.textDecoration = ''; txt.style.color = ''; }
+  }
+  updateSubProgress(actId);
+}
+
+async function agregarSubtarea(actId, input) {
+  const texto = input.value.trim();
+  if (!texto) return;
+  const body = new URLSearchParams({ texto });
+  const resp = await fetch(`/actividades/${actId}/subtarea`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString()
+  });
+  if (!resp.ok) return;
+  const data = await resp.json();
+  input.value = '';
+  // Insert new item before the add-row
+  const addRow = input.closest('.add-subtarea-row');
+  const container = document.getElementById(`subtareas-${actId}`);
+  const item = document.createElement('div');
+  item.className = 'subtarea-item';
+  item.id = `subtarea-${data.id}`;
+  item.innerHTML = `
+    <button type="button" class="subtarea-check"
+            onclick="toggleSubtarea(${data.id}, ${actId}, this)" title="Completar">
+      <i class="bi bi-check2"></i>
+    </button>
+    <span class="subtarea-texto" id="sub-txt-${data.id}">${escHtml(data.texto)}</span>
+    <button type="button" class="subtarea-del" onclick="eliminarSubtarea(${data.id}, ${actId})" title="Eliminar">
+      <i class="bi bi-x"></i>
+    </button>`;
+  container.insertBefore(item, addRow);
+  updateSubProgress(actId);
+}
+
+async function eliminarSubtarea(sid, actId) {
+  await fetch(`/actividades/${actId}/subtarea/${sid}/eliminar`, { method: 'POST' });
+  const el = document.getElementById(`subtarea-${sid}`);
+  if (el) el.remove();
+  updateSubProgress(actId);
+}
+
+function updateSubProgress(actId) {
+  const container = document.getElementById(`subtareas-${actId}`);
+  if (!container) return;
+  const items = container.querySelectorAll('.subtarea-item');
+  const done = container.querySelectorAll('.subtarea-check.completada').length;
+  const badge = document.getElementById(`sub-prog-${actId}`);
+  if (items.length === 0) {
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+  if (!badge) {
+    // create badge in meta row
+    const meta = document.querySelector(`#act-${actId} .actividad-meta`);
+    if (meta) {
+      const span = document.createElement('span');
+      span.className = 'sub-progress-badge';
+      span.id = `sub-prog-${actId}`;
+      span.innerHTML = `<i class="bi bi-list-check me-1"></i>${done}/${items.length}`;
+      meta.appendChild(span);
+    }
+  } else {
+    badge.innerHTML = `<i class="bi bi-list-check me-1"></i>${done}/${items.length}`;
+    badge.style.display = '';
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Adjuntar archivos en bitácora
 const inputArchivos = document.getElementById('inputArchivos');
 if (inputArchivos) {
   inputArchivos.addEventListener('change', function() {

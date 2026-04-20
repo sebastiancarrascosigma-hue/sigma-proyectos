@@ -99,6 +99,21 @@ class Actividad(Base):
     proyecto = relationship("Proyecto", back_populates="actividades")
     responsable_usuario = relationship("Usuario", back_populates="actividades_asignadas", foreign_keys=[responsable_usuario_id])
     comentarios = relationship("Comentario", back_populates="actividad")
+    subtareas = relationship("SubActividad", back_populates="actividad",
+                             cascade="all, delete-orphan", order_by="SubActividad.created_at")
+
+
+class SubActividad(Base):
+    __tablename__ = "subactividades"
+    id           = Column(Integer, primary_key=True, index=True)
+    actividad_id = Column(Integer, ForeignKey("actividades.id", ondelete="CASCADE"), nullable=False)
+    texto        = Column(String(500), nullable=False)
+    completado   = Column(Boolean, default=False)
+    created_by   = Column(Integer, ForeignKey("usuarios.id"))
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    actividad = relationship("Actividad", back_populates="subtareas")
+    creador   = relationship("Usuario", foreign_keys=[created_by])
 
 
 class Minuta(Base):

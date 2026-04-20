@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 from database import get_db
@@ -113,3 +113,71 @@ async def eliminar(actividad_id: int, request: Request, db: Session = Depends(ge
         return RedirectResponse(f"/proyectos/{proyecto_id}", status_code=302)
 
     return RedirectResponse("/proyectos", status_code=302)
+
+
+# ── Subtareas ──────────────────────────────────────────────────────────────────
+
+@router.post("/{actividad_id}/subtarea")
+async def nueva_subtarea(
+    actividad_id: int,
+    request: Request,
+    texto: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"error": "no auth"}, status_code=401)
+    actividad = db.query(models.Actividad).filter(models.Actividad.id == actividad_id).first()
+    if not actividad:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sub = models.SubActividad(
+        actividad_id=actividad_id,
+        texto=texto.strip(),
+        completado=False,
+        created_by=user.id,
+    )
+    db.add(sub)
+    db.commit()
+    db.refresh(sub)
+    return JSONResponse({"id": sub.id, "texto": sub.texto, "completado": sub.completado})
+
+
+@router.post("/{actividad_id}/subtarea/{subtarea_id}/toggle")
+async def toggle_subtarea(
+    actividad_id: int,
+    subtarea_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"error": "no auth"}, status_code=401)
+    sub = db.query(models.SubActividad).filter(
+        models.SubActividad.id == subtarea_id,
+        models.SubActividad.actividad_id == actividad_id
+    ).first()
+    if not sub:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sub.completado = not sub.completado
+    db.commit()
+    return JSONResponse({"id": sub.id, "completado": sub.completado})
+
+
+@router.post("/{actividad_id}/subtarea/{subtarea_id}/eliminar")
+async def eliminar_subtarea(
+    actividad_id: int,
+    subtarea_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"error": "no auth"}, status_code=401)
+    sub = db.query(models.SubActividad).filter(
+        models.SubActividad.id == subtarea_id,
+        models.SubActividad.actividad_id == actividad_id
+    ).first()
+    if sub:
+        db.delete(sub)
+        db.commit()
+    return JSONResponse({"ok": True})

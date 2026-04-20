@@ -228,6 +228,44 @@ body { background: var(--body-bg); font-family: 'Segoe UI', sans-serif; }
 .progress { height: 8px; border-radius: 99px; }
 .progress-bar { border-radius: 99px; }
 
+/* ── Subtareas (To-Do style) ── */
+.subtareas-section { padding-top: 4px; }
+.subtarea-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0; border-radius: 6px;
+}
+.subtarea-item:hover .subtarea-del { opacity: 1; }
+.subtarea-check {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid #d1d5db; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; color: transparent;
+    transition: border-color .15s, background .15s, color .15s;
+    padding: 0;
+}
+.subtarea-check:hover { border-color: #3b82f6; }
+.subtarea-check.completada { background: #22c55e; border-color: #22c55e; color: #fff; }
+.subtarea-texto { font-size: .82rem; color: #374151; flex: 1; line-height: 1.3; }
+.subtarea-del {
+    background: none; border: none; padding: 0; color: #9ca3af;
+    cursor: pointer; opacity: 0; font-size: .9rem; line-height: 1;
+    transition: opacity .15s, color .15s;
+}
+.subtarea-del:hover { color: #ef4444; }
+.add-subtarea-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 2px; padding: 2px 0;
+}
+.subtarea-input {
+    border: none; outline: none; background: transparent;
+    font-size: .82rem; color: #374151; flex: 1;
+    padding: 2px 0;
+}
+.subtarea-input::placeholder { color: #cbd5e1; }
+.sub-progress-badge {
+    font-size: .72rem; color: #64748b;
+}
+
 /* ── Tables ── */
 .table th { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: #64748b; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
 .table td { font-size: .85rem; vertical-align: middle; }
