@@ -245,7 +245,7 @@ document.getElementById('btnAddPart').addEventListener('click', () => {
 });
 
 // Cambio de cliente → agregar contacto por defecto
-const tsCliente = new TomSelect('#selectCliente', { placeholder: 'Buscar cliente…' });
+const tsCliente = new TomSelect('#selectCliente', { placeholder: 'Buscar cliente…', dropdownParent: 'body' });
 document.getElementById('selectCliente').addEventListener('change', function() {
   const cid = parseInt(this.value);
   const c = clientesData[cid];
@@ -294,22 +294,29 @@ document.getElementById('btnAddTema').addEventListener('click', () => {
   const ts = new TomSelect(selProy, {
     options: proyectosPorCliente(),
     placeholder: 'Buscar proyecto…',
+    dropdownParent: 'body',
     onChange(val) {
       const p = proyectosData[val];
       if (!p) return;
       // Agregar responsable a participantes
       if (p.responsable_nombre) addParticipante(p.responsable_nombre, p.responsable_email, 'Sigma Energía');
-      // Pre-seleccionar responsable en el select
-      const selResp = card.querySelector('.select-responsable');
-      {% for u in usuarios %}
-      if ("{{ u.nombre }}" === p.responsable_nombre) selResp.value = "{{ u.id }}";
-      {% endfor %}
+      // Pre-seleccionar responsable en el TomSelect
+      const tsResp = card._tsResp;
+      if (tsResp) {
+        {% for u in usuarios %}
+        if ("{{ u.nombre }}" === p.responsable_nombre) tsResp.setValue("{{ u.id }}");
+        {% endfor %}
+      }
     }
   });
   tomSelectInstances[temaCount] = ts;
 
   // Tom Select para responsable
-  new TomSelect(card.querySelector('.select-responsable'), { placeholder: 'Sin responsable' });
+  const tsResp = new TomSelect(card.querySelector('.select-responsable'), {
+    placeholder: 'Sin responsable',
+    dropdownParent: 'body',
+  });
+  card._tsResp = tsResp;
 
   // Botón eliminar
   card.querySelector('.btn-remove-tema').addEventListener('click', () => {
