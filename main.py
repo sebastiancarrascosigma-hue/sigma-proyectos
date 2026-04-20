@@ -6,9 +6,30 @@ import database, models
 
 from routers import auth_router, dashboard, clientes, proyectos, actividades, usuarios, correspondencia, minutas
 
-app = FastAPI(title="Sigma Proyectos", debug=True)
+
+def run_migrations():
+    """Aplica columnas/tablas faltantes que create_all no agrega a tablas existentes."""
+    from sqlalchemy import text
+    stmts = [
+        # minutas: columna email_enviado agregada después de la creación inicial
+        "ALTER TABLE minutas ADD COLUMN IF NOT EXISTS email_enviado BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE minutas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP",
+        # minuta_participantes: sin cambios estructurales, pero por si acaso
+        # subactividades y documentos: create_all las crea si no existen
+    ]
+    with database.engine.connect() as conn:
+        for stmt in stmts:
+            try:
+                conn.execute(text(stmt))
+            except Exception as e:
+                print(f"[migration] {stmt[:60]}… → {e}")
+        conn.commit()
+
+
+app = FastAPI(title="Sigma Proyectos")
 app.add_middleware(SessionMiddleware, secret_key="sigma-session-key-2026")
 
+run_migrations()
 models.Base.metadata.create_all(bind=database.engine)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
