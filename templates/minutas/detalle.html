@@ -191,21 +191,41 @@
 <!-- Modal eliminar -->
 {% if current_user.rol == "admin" %}
 <div class="modal fade" id="modalEliminar" tabindex="-1">
-  <div class="modal-dialog modal-sm">
+  <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header border-0 pb-0">
         <h6 class="modal-title fw-bold text-danger"><i class="bi bi-trash me-2"></i>Eliminar Minuta</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body text-center py-3">
-        <p class="mb-1 small">Los comentarios ya registrados en los proyectos <strong>no se eliminarán</strong>.</p>
-      </div>
-      <div class="modal-footer border-0 pt-0">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-        <form method="post" action="/minutas/{{ minuta.id }}/eliminar" class="d-inline">
-          <button type="submit" class="btn btn-danger btn-sm fw-semibold">Eliminar</button>
-        </form>
-      </div>
+      <form method="post" action="/minutas/{{ minuta.id }}/eliminar">
+        <div class="modal-body py-3">
+          <p class="mb-3 small text-muted">Esta acción no se puede deshacer.</p>
+
+          {% if comentarios_minuta > 0 %}
+          <div class="form-check p-3 border rounded mb-2" style="background:#fff8f0">
+            <input class="form-check-input" type="checkbox" name="eliminar_comentarios"
+                   value="si" id="chkEliminarComentarios">
+            <label class="form-check-label small" for="chkEliminarComentarios">
+              <strong>Eliminar también los {{ comentarios_minuta }} comentario(s)</strong>
+              registrados en las bitácoras de los proyectos al crear esta minuta.
+            </label>
+          </div>
+          <p class="small text-muted mb-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Si no marcas esta opción, los comentarios en bitácora quedan intactos.
+          </p>
+          {% else %}
+          <input type="hidden" name="eliminar_comentarios" value="no">
+          <p class="small text-muted mb-0">Esta minuta no tiene comentarios asociados en bitácoras.</p>
+          {% endif %}
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger btn-sm fw-semibold">
+            <i class="bi bi-trash me-1"></i>Eliminar minuta
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

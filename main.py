@@ -17,6 +17,7 @@ def run_migrations():
         "ALTER TABLE minutas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP",
         # minuta_temas: fecha_estimada_respuesta agregada después
         "ALTER TABLE minuta_temas ADD COLUMN IF NOT EXISTS fecha_estimada_respuesta DATE",
+        "ALTER TABLE comentarios ADD COLUMN IF NOT EXISTS minuta_id INTEGER REFERENCES minutas(id) ON DELETE SET NULL",
         # subactividades y documentos: create_all las crea si no existen
     ]
     with database.engine.connect() as conn:

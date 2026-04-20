@@ -145,6 +145,7 @@ async def nueva_submit(
             db.add(models.Comentario(
                 proyecto_id=pid,
                 usuario_id=user.id,
+                minuta_id=minuta.id,
                 texto=texto,
                 tipo_registro="comentario",
             ))
@@ -163,10 +164,14 @@ async def detalle(minuta_id: int, request: Request, db: Session = Depends(get_db
     minuta = db.query(models.Minuta).filter(models.Minuta.id == minuta_id).first()
     if not minuta:
         return RedirectResponse("/minutas", status_code=302)
+    comentarios_minuta = db.query(models.Comentario).filter(
+        models.Comentario.minuta_id == minuta_id
+    ).count()
     return templates.TemplateResponse(request, "minutas/detalle.html", {
         "current_user": user,
         "minuta": minuta,
         "email_configurado": bool(os.getenv("EMAIL_SENDER")),
+        "comentarios_minuta": comentarios_minuta,
         "flash": request.session.pop("flash", None),
     })
 
@@ -339,13 +344,26 @@ async def enviar(minuta_id: int, request: Request, db: Session = Depends(get_db)
 
 
 @router.post("/{minuta_id}/eliminar")
-async def eliminar(minuta_id: int, request: Request, db: Session = Depends(get_db)):
+async def eliminar(
+    minuta_id: int,
+    request: Request,
+    eliminar_comentarios: str = Form("no"),
+    db: Session = Depends(get_db)
+):
     user = auth.get_current_user(request, db)
     if not user or user.rol != "admin":
         return RedirectResponse("/minutas", status_code=302)
     minuta = db.query(models.Minuta).filter(models.Minuta.id == minuta_id).first()
     if minuta:
+        comentarios_eliminados = 0
+        if eliminar_comentarios == "si":
+            comentarios_eliminados = db.query(models.Comentario).filter(
+                models.Comentario.minuta_id == minuta_id
+            ).delete()
         db.delete(minuta)
         db.commit()
-        request.session["flash"] = {"tipo": "warning", "texto": "Minuta eliminada."}
+        msg = "Minuta eliminada."
+        if comentarios_eliminados:
+            msg += f" Se eliminaron {comentarios_eliminados} comentario(s) de bitácoras."
+        request.session["flash"] = {"tipo": "warning", "texto": msg}
     return RedirectResponse("/minutas", status_code=302)

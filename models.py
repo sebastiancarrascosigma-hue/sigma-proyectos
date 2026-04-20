@@ -187,6 +187,7 @@ class Comentario(Base):
     proyecto_id = Column(Integer, ForeignKey("proyectos.id"), nullable=False)
     actividad_id = Column(Integer, ForeignKey("actividades.id"), nullable=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    minuta_id = Column(Integer, ForeignKey("minutas.id", ondelete="SET NULL"), nullable=True)
     texto = Column(Text, nullable=False)
     tipo_registro = Column(String(30), default="comentario")  # comentario / cambio_estado / sistema
     created_at = Column(DateTime, default=datetime.utcnow)
