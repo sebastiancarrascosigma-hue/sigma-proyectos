@@ -171,6 +171,123 @@ async def detalle(minuta_id: int, request: Request, db: Session = Depends(get_db
     })
 
 
+@router.get("/{minuta_id}/editar", response_class=HTMLResponse)
+async def editar_form(minuta_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    minuta = db.query(models.Minuta).filter(models.Minuta.id == minuta_id).first()
+    if not minuta:
+        return RedirectResponse("/minutas", status_code=302)
+    if user.rol != "admin" and minuta.created_by != user.id:
+        request.session["flash"] = {"tipo": "danger", "texto": "No tienes permiso para editar esta minuta."}
+        return RedirectResponse(f"/minutas/{minuta_id}", status_code=302)
+
+    clientes  = db.query(models.Cliente).filter(models.Cliente.activo == True).order_by(models.Cliente.nombre).all()
+    proyectos = db.query(models.Proyecto).order_by(models.Proyecto.nombre).all()
+    usuarios  = db.query(models.Usuario).filter(models.Usuario.activo == True).order_by(models.Usuario.nombre).all()
+
+    participantes_json = json.dumps([
+        {"nombre": p.nombre, "email": p.email or "", "empresa": p.empresa or ""}
+        for p in minuta.participantes
+    ], ensure_ascii=False)
+
+    temas_json = json.dumps([
+        {
+            "proyecto_id": str(t.proyecto_id),
+            "lo_tratado": t.lo_tratado,
+            "acuerdos": t.acuerdos or "",
+            "responsable_id": str(t.responsable_id) if t.responsable_id else "",
+            "fecha_estimada_respuesta": t.fecha_estimada_respuesta.strftime("%Y-%m-%d") if t.fecha_estimada_respuesta else "",
+        }
+        for t in minuta.temas
+    ], ensure_ascii=False)
+
+    return templates.TemplateResponse(request, "minutas/editar.html", {
+        "current_user": user,
+        "minuta": minuta,
+        "clientes": clientes,
+        "proyectos": proyectos,
+        "usuarios": usuarios,
+        "proyectos_json": _proyectos_como_json(proyectos),
+        "clientes_json": _clientes_como_json(clientes),
+        "participantes_json": participantes_json,
+        "temas_json": temas_json,
+    })
+
+
+@router.post("/{minuta_id}/editar")
+async def editar_submit(
+    minuta_id: int,
+    request: Request,
+    cliente_id: int = Form(...),
+    titulo: str = Form(...),
+    fecha: str = Form(...),
+    resumen: str = Form(""),
+    part_nombres: List[str] = Form(default=[]),
+    part_emails: List[str] = Form(default=[]),
+    part_empresas: List[str] = Form(default=[]),
+    proyecto_ids: List[int] = Form(default=[]),
+    lo_tratados: List[str] = Form(default=[]),
+    acuerdos_list: List[str] = Form(default=[]),
+    responsable_ids: List[str] = Form(default=[]),
+    fechas_respuesta: List[str] = Form(default=[]),
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    minuta = db.query(models.Minuta).filter(models.Minuta.id == minuta_id).first()
+    if not minuta:
+        return RedirectResponse("/minutas", status_code=302)
+    if user.rol != "admin" and minuta.created_by != user.id:
+        request.session["flash"] = {"tipo": "danger", "texto": "No tienes permiso para editar esta minuta."}
+        return RedirectResponse(f"/minutas/{minuta_id}", status_code=302)
+
+    minuta.cliente_id = cliente_id
+    minuta.titulo = titulo.strip()
+    minuta.fecha = datetime.strptime(fecha, "%Y-%m-%d")
+    minuta.resumen = resumen.strip() or None
+    minuta.email_enviado = False
+
+    db.query(models.MinutaParticipante).filter(models.MinutaParticipante.minuta_id == minuta_id).delete()
+    db.query(models.MinutaTema).filter(models.MinutaTema.minuta_id == minuta_id).delete()
+    db.flush()
+
+    for i, nombre in enumerate(part_nombres):
+        nombre = nombre.strip()
+        if not nombre:
+            continue
+        db.add(models.MinutaParticipante(
+            minuta_id=minuta.id,
+            nombre=nombre,
+            email=(part_emails[i].strip() if i < len(part_emails) else "") or None,
+            empresa=(part_empresas[i].strip() if i < len(part_empresas) else "") or None,
+        ))
+
+    for i, pid in enumerate(proyecto_ids):
+        tratado = lo_tratados[i].strip() if i < len(lo_tratados) else ""
+        acuerdo = acuerdos_list[i].strip() if i < len(acuerdos_list) else ""
+        resp_raw = responsable_ids[i] if i < len(responsable_ids) else ""
+        resp_id = int(resp_raw) if resp_raw and resp_raw.isdigit() else None
+        fecha_raw = fechas_respuesta[i].strip() if i < len(fechas_respuesta) else ""
+        fecha_resp = datetime.strptime(fecha_raw, "%Y-%m-%d").date() if fecha_raw else None
+        if not tratado:
+            continue
+        db.add(models.MinutaTema(
+            minuta_id=minuta.id,
+            proyecto_id=pid,
+            lo_tratado=tratado,
+            acuerdos=acuerdo or None,
+            responsable_id=resp_id,
+            fecha_estimada_respuesta=fecha_resp,
+        ))
+
+    db.commit()
+    request.session["flash"] = {"tipo": "success", "texto": "Minuta actualizada."}
+    return RedirectResponse(f"/minutas/{minuta_id}", status_code=302)
+
+
 @router.post("/{minuta_id}/enviar")
 async def enviar(minuta_id: int, request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)

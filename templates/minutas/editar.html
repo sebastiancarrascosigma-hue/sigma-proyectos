@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block title %}Editar Minuta · Sigma Proyectos{% endblock %}
+{% block page_title %}<i class="bi bi-pencil me-2 text-primary"></i>Editar Minuta{% endblock %}
+{% block topbar_actions %}
+  <a href="/minutas/{{ minuta.id }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Volver</a>
+{% endblock %}
+
+{% block content %}
+<!-- Tom Select -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
+<style>
+.minuta-doc { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+.minuta-header { background:linear-gradient(135deg,#1d4ed8,#3b82f6); padding:24px 28px; color:#fff; }
+.minuta-section { padding:20px 28px; border-bottom:1px solid #f3f4f6; }
+.minuta-section-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:12px; }
+.participante-tag { display:inline-flex; align-items:center; gap:6px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:20px; padding:4px 12px; font-size:.82rem; margin:3px; }
+.participante-tag .btn-remove { background:none; border:none; color:#93c5fd; cursor:pointer; padding:0; line-height:1; font-size:.9rem; }
+.participante-tag .btn-remove:hover { color:#dc2626; }
+.tema-card { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; margin-bottom:16px; }
+.tema-card-header { background:#f8fafc; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e5e7eb; }
+.tema-card-body { padding:16px; }
+</style>
+
+<form method="post" action="/minutas/{{ minuta.id }}/editar" id="formMinuta">
+<div class="minuta-doc shadow-sm">
+
+  <!-- ── Encabezado ── -->
+  <div class="minuta-header">
+    <div style="font-size:.7rem;font-weight:600;letter-spacing:.08em;opacity:.7;text-transform:uppercase">Sigma Energía SpA · Minuta de Reunión</div>
+    <div class="row g-3 mt-1">
+      <div class="col-md-5">
+        <label class="form-label text-white small mb-1">Cliente *</label>
+        <select name="cliente_id" id="selectCliente" class="form-select form-select-sm" required>
+          <option value="">Seleccionar cliente…</option>
+          {% for c in clientes %}
+          <option value="{{ c.id }}" {% if c.id == minuta.cliente_id %}selected{% endif %}>{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label text-white small mb-1">Asunto / Título *</label>
+        <input type="text" name="titulo" class="form-control form-control-sm" required
+               value="{{ minuta.titulo }}" placeholder="Ej: Reunión mensual de seguimiento">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label text-white small mb-1">Fecha *</label>
+        <input type="date" name="fecha" class="form-control form-control-sm"
+               value="{{ minuta.fecha.strftime('%Y-%m-%d') }}" required>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Participantes ── -->
+  <div class="minuta-section">
+    <div class="minuta-section-title"><i class="bi bi-people me-1"></i>Participantes</div>
+    <div id="participantesContainer" class="mb-3"></div>
+    <!-- Agregar participante -->
+    <div class="d-flex gap-2 align-items-end flex-wrap" id="rowAgregarPart">
+      <div>
+        <input type="text" id="newPartNombre" class="form-control form-control-sm" placeholder="Nombre" style="width:180px">
+      </div>
+      <div>
+        <input type="email" id="newPartEmail" class="form-control form-control-sm" placeholder="Email" style="width:200px">
+      </div>
+      <div>
+        <input type="text" id="newPartEmpresa" class="form-control form-control-sm" placeholder="Empresa" style="width:150px">
+      </div>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddPart">
+        <i class="bi bi-person-plus me-1"></i>Agregar
+      </button>
+    </div>
+    <!-- Inputs ocultos para los participantes -->
+    <div id="partInputs"></div>
+  </div>
+
+  <!-- ── Resumen general ── -->
+  <div class="minuta-section">
+    <div class="minuta-section-title"><i class="bi bi-chat-text me-1"></i>Contexto / Resumen general</div>
+    <textarea name="resumen" class="form-control form-control-sm" rows="2"
+              placeholder="Contexto general de la reunión (opcional)…">{{ minuta.resumen or '' }}</textarea>
+  </div>
+
+  <!-- ── Proyectos tratados ── -->
+  <div class="minuta-section" id="seccionTemas">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="minuta-section-title mb-0"><i class="bi bi-folder2-open me-1"></i>Proyectos Tratados</div>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddTema">
+        <i class="bi bi-plus-lg me-1"></i>Agregar Proyecto
+      </button>
+    </div>
+    <div id="contenedorTemas"></div>
+    <div id="sinTemas" class="text-center py-4 text-muted small" style="display:none">
+      <i class="bi bi-folder-plus d-block display-6 mb-2"></i>
+      Presiona "Agregar Proyecto" para registrar los temas tratados
+    </div>
+  </div>
+
+  <!-- ── Guardar ── -->
+  <div class="minuta-section bg-light d-flex justify-content-between align-items-center">
+    <div class="small text-muted">
+      <i class="bi bi-info-circle me-1"></i>Los cambios en la bitácora de proyectos no se actualizan automáticamente al editar.
+    </div>
+    <button type="submit" class="btn btn-primary fw-semibold px-4">
+      <i class="bi bi-floppy me-2"></i>Guardar Cambios
+    </button>
+  </div>
+
+</div>
+</form>
+
+<!-- Template oculto para temas -->
+<template id="temaTemplate">
+  <div class="tema-card" data-tema-idx="__IDX__">
+    <div class="tema-card-header">
+      <div class="d-flex align-items-center gap-3 flex-grow-1 flex-wrap">
+        <span class="fw-semibold small text-muted">Proyecto __NUM__</span>
+        <div style="min-width:280px;max-width:420px">
+          <select name="proyecto_ids" class="form-select form-select-sm select-proyecto" required></select>
+        </div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-danger btn-remove-tema ms-2">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+    <div class="tema-card-body">
+      <table class="w-100" style="border-collapse:separate;border-spacing:8px 0">
+        <thead>
+          <tr>
+            <th style="width:35%;font-size:.72rem;color:#9ca3af;font-weight:600;text-transform:uppercase;padding-bottom:6px">
+              <i class="bi bi-chat-text me-1"></i>Lo tratado *
+            </th>
+            <th style="width:35%;font-size:.72rem;color:#9ca3af;font-weight:600;text-transform:uppercase;padding-bottom:6px">
+              <i class="bi bi-check2-all me-1 text-success"></i>Acuerdo / Compromiso
+            </th>
+            <th style="width:18%;font-size:.72rem;color:#9ca3af;font-weight:600;text-transform:uppercase;padding-bottom:6px">
+              <i class="bi bi-person-check me-1"></i>Responsable
+            </th>
+            <th style="width:12%;font-size:.72rem;color:#9ca3af;font-weight:600;text-transform:uppercase;padding-bottom:6px">
+              <i class="bi bi-calendar-event me-1"></i>Fecha resp.
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="vertical-align:top">
+            <td>
+              <textarea name="lo_tratados" class="form-control form-control-sm" rows="4" required
+                        placeholder="¿Qué se habló?…"></textarea>
+            </td>
+            <td>
+              <textarea name="acuerdos_list" class="form-control form-control-sm" rows="4"
+                        placeholder="¿Qué quedó comprometido?…"></textarea>
+            </td>
+            <td>
+              <select name="responsable_ids" class="form-select form-select-sm select-responsable">
+                <option value="">Sin responsable</option>
+                {% for u in usuarios %}
+                <option value="{{ u.id }}">{{ u.nombre }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="date" name="fechas_respuesta" class="form-control form-control-sm">
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Datos desde backend ────────────────────────────────────────────────────
+const proyectosData  = {{ proyectos_json | safe }};
+const clientesData   = {{ clientes_json | safe }};
+
+// ── Estado de participantes ────────────────────────────────────────────────
+let participantes = [];
+
+function renderParticipantes() {
+  const cont = document.getElementById('participantesContainer');
+  cont.innerHTML = '';
+  participantes.forEach((p, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'participante-tag';
+    tag.innerHTML = `
+      <i class="bi bi-person-circle text-primary"></i>
+      <span class="fw-semibold">${p.nombre}</span>
+      ${p.empresa ? `<span class="text-muted">· ${p.empresa}</span>` : ''}
+      ${p.email ? `<span class="text-muted small">&lt;${p.email}&gt;</span>` : ''}
+      <button class="btn-remove" type="button" data-idx="${i}" title="Quitar">✕</button>
+    `;
+    cont.appendChild(tag);
+  });
+  const partInputs = document.getElementById('partInputs');
+  partInputs.innerHTML = '';
+  participantes.forEach(p => {
+    partInputs.insertAdjacentHTML('beforeend', `
+      <input type="hidden" name="part_nombres" value="${p.nombre}">
+      <input type="hidden" name="part_emails" value="${p.email || ''}">
+      <input type="hidden" name="part_empresas" value="${p.empresa || ''}">
+    `);
+  });
+  cont.querySelectorAll('.btn-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      participantes.splice(parseInt(btn.dataset.idx), 1);
+      renderParticipantes();
+    });
+  });
+}
+
+function addParticipante(nombre, email, empresa) {
+  nombre = nombre.trim();
+  if (!nombre) return;
+  if (participantes.some(p => p.nombre === nombre)) return;
+  participantes.push({ nombre, email: (email || '').trim(), empresa: (empresa || '').trim() });
+  renderParticipantes();
+}
+
+document.getElementById('btnAddPart').addEventListener('click', () => {
+  addParticipante(
+    document.getElementById('newPartNombre').value,
+    document.getElementById('newPartEmail').value,
+    document.getElementById('newPartEmpresa').value
+  );
+  document.getElementById('newPartNombre').value = '';
+  document.getElementById('newPartEmail').value = '';
+  document.getElementById('newPartEmpresa').value = '';
+  document.getElementById('newPartNombre').focus();
+});
+
+['newPartNombre','newPartEmail','newPartEmpresa'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnAddPart').click(); }
+  });
+});
+
+// Cliente — al cambiar limpia participantes no-Sigma y agrega contacto del cliente
+const tsCliente = new TomSelect('#selectCliente', { placeholder: 'Buscar cliente…', dropdownParent: 'body' });
+document.getElementById('selectCliente').addEventListener('change', function() {
+  const cid = parseInt(this.value);
+  const c = clientesData[cid];
+  if (!c) return;
+  participantes = participantes.filter(p => p.empresa === 'Sigma Energía');
+  if (c.contacto_nombre) {
+    addParticipante(c.contacto_nombre, c.contacto_email || '', c.nombre);
+  }
+  actualizarSelectsProyecto();
+});
+
+// ── Temas ──────────────────────────────────────────────────────────────────
+let temaCount = 0;
+const tomSelectInstances = {};
+
+function proyectosPorCliente() {
+  const cid = parseInt(document.getElementById('selectCliente').value) || null;
+  return Object.entries(proyectosData)
+    .filter(([id, p]) => !cid || p.cliente_id === cid)
+    .map(([id, p]) => ({ value: id, text: `${p.codigo} · ${p.nombre}` }));
+}
+
+function actualizarSelectsProyecto() {
+  const opts = proyectosPorCliente();
+  Object.values(tomSelectInstances).forEach(ts => {
+    ts.clearOptions();
+    ts.addOption(opts);
+    ts.refreshOptions(false);
+  });
+}
+
+document.getElementById('btnAddTema').addEventListener('click', () => {
+  const tmpl = document.getElementById('temaTemplate').innerHTML
+    .replace(/__IDX__/g, temaCount)
+    .replace(/__NUM__/g, temaCount + 1);
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = tmpl;
+  const card = wrapper.firstElementChild;
+  document.getElementById('contenedorTemas').appendChild(card);
+  document.getElementById('sinTemas').style.display = 'none';
+
+  const selProy = card.querySelector('.select-proyecto');
+  const ts = new TomSelect(selProy, {
+    options: proyectosPorCliente(),
+    placeholder: 'Buscar proyecto…',
+    dropdownParent: 'body',
+    onChange(val) {
+      const p = proyectosData[val];
+      if (!p) return;
+      if (p.responsable_nombre) addParticipante(p.responsable_nombre, p.responsable_email, 'Sigma Energía');
+      const tsResp = card._tsResp;
+      if (tsResp) {
+        {% for u in usuarios %}
+        if ("{{ u.nombre }}" === p.responsable_nombre) tsResp.setValue("{{ u.id }}");
+        {% endfor %}
+      }
+    }
+  });
+  tomSelectInstances[temaCount] = ts;
+
+  const tsResp = new TomSelect(card.querySelector('.select-responsable'), {
+    placeholder: 'Sin responsable',
+    dropdownParent: 'body',
+  });
+  card._tsResp = tsResp;
+
+  card.querySelector('.btn-remove-tema').addEventListener('click', () => {
+    card.remove();
+    const cont = document.getElementById('contenedorTemas');
+    if (!cont.children.length) document.getElementById('sinTemas').style.display = '';
+    renumerarTemas();
+  });
+
+  temaCount++;
+});
+
+function renumerarTemas() {
+  document.querySelectorAll('.tema-card').forEach((c, i) => {
+    c.querySelector('.fw-semibold').textContent = `Proyecto ${i + 1}`;
+  });
+}
+
+// ── Pre-cargar datos existentes ────────────────────────────────────────────
+
+// 1. Pre-seleccionar cliente (el change event filtra participantes vacíos y agrega contacto)
+tsCliente.setValue("{{ minuta.cliente_id }}");
+
+// 2. Pre-cargar participantes guardados (deduplicación por nombre)
+const participantesPreload = {{ participantes_json | safe }};
+participantesPreload.forEach(p => addParticipante(p.nombre, p.email, p.empresa));
+
+// 3. Pre-cargar temas
+const temasPreload = {{ temas_json | safe }};
+temasPreload.forEach(tema => {
+  document.getElementById('btnAddTema').click();
+  const cards = document.querySelectorAll('.tema-card');
+  const card = cards[cards.length - 1];
+  const idx = temaCount - 1;
+
+  // Proyecto
+  if (tomSelectInstances[idx] && tema.proyecto_id) {
+    tomSelectInstances[idx].setValue(tema.proyecto_id);
+  }
+
+  // Lo tratado y acuerdo
+  const loTratadoTA = card.querySelector('textarea[name="lo_tratados"]');
+  const acuerdoTA   = card.querySelector('textarea[name="acuerdos_list"]');
+  if (loTratadoTA) loTratadoTA.value = tema.lo_tratado;
+  if (acuerdoTA)   acuerdoTA.value   = tema.acuerdos;
+
+  // Responsable (override el que puso onChange del proyecto)
+  if (card._tsResp && tema.responsable_id) {
+    card._tsResp.setValue(tema.responsable_id);
+  } else if (card._tsResp && !tema.responsable_id) {
+    card._tsResp.setValue('');
+  }
+
+  // Fecha estimada de respuesta
+  const fechaInput = card.querySelector('input[name="fechas_respuesta"]');
+  if (fechaInput && tema.fecha_estimada_respuesta) {
+    fechaInput.value = tema.fecha_estimada_respuesta;
+  }
+});
+</script>
+{% endblock %}

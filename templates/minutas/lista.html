@@ -36,7 +36,10 @@
               {{ m.titulo[:70] }}{% if m.titulo|length > 70 %}…{% endif %}
             </a>
             {% if m.participantes %}
-            <div class="small text-muted"><i class="bi bi-people me-1"></i>{{ m.participantes[:60] }}{% if m.participantes|length > 60 %}…{% endif %}</div>
+            <div class="small text-muted">
+              <i class="bi bi-people me-1"></i>
+              {{ m.participantes | map(attribute='nombre') | join(', ') | truncate(70, True, '…') }}
+            </div>
             {% endif %}
           </td>
           <td class="text-center">

@@ -5,6 +5,11 @@
   {{ minuta.fecha.strftime('%d/%m/%Y') }} · {{ minuta.cliente.nombre }}
 {% endblock %}
 {% block topbar_actions %}
+  {% if current_user.rol == "admin" or minuta.created_by == current_user.id %}
+  <a href="/minutas/{{ minuta.id }}/editar" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-pencil me-1"></i>Editar
+  </a>
+  {% endif %}
   {% if not minuta.email_enviado and minuta.participantes %}
   <form method="post" action="/minutas/{{ minuta.id }}/enviar" class="d-inline">
     <button type="submit" class="btn btn-primary btn-sm fw-semibold"

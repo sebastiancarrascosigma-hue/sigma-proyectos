@@ -222,7 +222,7 @@
       </div>
 
       <!-- Documentos del proyecto (sin comentario) -->
-      {% set docs_proyecto = proyecto.documentos | selectattr('comentario_id', 'none') | list %}
+      {% set docs_proyecto = [] %}{% for _d in proyecto.documentos %}{% if _d.comentario_id is none %}{% set _ = docs_proyecto.append(_d) %}{% endif %}{% endfor %}
       {% if docs_proyecto %}
       <div class="px-3 pt-3 pb-1">
         <div class="small text-muted fw-semibold mb-1"><i class="bi bi-paperclip me-1"></i>Documentos del proyecto</div>

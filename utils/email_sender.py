@@ -40,32 +40,39 @@ def enviar_minuta(minuta, destinatarios: list[str]) -> tuple[bool, str]:
 
 
 def _construir_html(minuta) -> str:
-    temas_html = ""
+    # Filas de la tabla de temas
+    filas_temas = ""
     for t in minuta.temas:
-        acuerdo_html = (
-            f'<div style="margin-top:10px;padding:10px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:4px">'
-            f'<strong style="color:#16a34a">Acuerdos / Compromisos</strong><br>'
-            f'<span style="white-space:pre-wrap">{t.acuerdos}</span></div>'
-        ) if t.acuerdos else ""
+        acuerdo_cell = f'<div style="border-left:3px solid #16a34a;padding-left:8px;white-space:pre-wrap;color:#374151">{t.acuerdos}</div>' if t.acuerdos else '<span style="color:#9ca3af">—</span>'
+        resp_cell    = f'<strong style="color:#111827">{t.responsable.nombre}</strong>' if t.responsable else '<span style="color:#9ca3af">—</span>'
+        fecha_cell   = (f'<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:11px">'
+                        f'{t.fecha_estimada_respuesta.strftime("%d/%m/%Y")}</span>'
+                        if t.fecha_estimada_respuesta else '<span style="color:#9ca3af">—</span>')
+        filas_temas += f"""
+        <tr style="border-bottom:1px solid #f3f4f6;vertical-align:top">
+          <td style="padding:10px 12px">
+            <strong style="color:#1d4ed8;font-size:13px">{t.proyecto.codigo}</strong><br>
+            <span style="color:#6b7280;font-size:11px">{t.proyecto.nombre[:60]}</span>
+          </td>
+          <td style="padding:10px 12px;font-size:13px;white-space:pre-wrap;color:#374151">{t.lo_tratado}</td>
+          <td style="padding:10px 12px;font-size:13px">{acuerdo_cell}</td>
+          <td style="padding:10px 12px;font-size:13px;white-space:nowrap">{resp_cell}</td>
+          <td style="padding:10px 12px;font-size:13px;white-space:nowrap">{fecha_cell}</td>
+        </tr>"""
 
-        resp_html = (
-            f'<div style="margin-top:8px;font-size:12px;color:#6b7280">'
-            f'👤 Responsable: <strong>{t.responsable.nombre}</strong></div>'
-        ) if t.responsable else ""
-
-        temas_html += f"""
-        <div style="margin-bottom:20px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
-          <div style="background:#eff6ff;padding:12px 16px;border-bottom:1px solid #dbeafe">
-            <strong style="color:#1d4ed8">{t.proyecto.codigo}</strong>
-            <span style="color:#374151;margin-left:8px">{t.proyecto.nombre}</span>
-          </div>
-          <div style="padding:14px 16px">
-            <div style="font-size:12px;color:#6b7280;margin-bottom:4px;font-weight:600;text-transform:uppercase">Lo tratado</div>
-            <div style="white-space:pre-wrap;color:#111827">{t.lo_tratado}</div>
-            {acuerdo_html}
-            {resp_html}
-          </div>
-        </div>"""
+    temas_html = f"""
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="background:#f8fafc">
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0;width:18%">Proyecto</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0;width:28%">Lo Tratado</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0;width:28%">Acuerdo / Compromiso</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0;width:15%">Responsable</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e2e8f0;width:11%">Fecha Resp.</th>
+        </tr>
+      </thead>
+      <tbody>{filas_temas}</tbody>
+    </table>"""
 
     participantes_html = "".join(
         f'<span style="display:inline-block;margin:3px;padding:4px 10px;background:#f3f4f6;border-radius:20px;font-size:13px">'
