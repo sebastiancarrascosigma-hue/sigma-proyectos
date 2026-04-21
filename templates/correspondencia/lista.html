@@ -1,8 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Correspondencia CEN · Sigma Proyectos{% endblock %}
 {% block page_title %}<i class="bi bi-envelope-open me-2 text-primary"></i>Correspondencia CEN{% endblock %}
+{% block topbar_actions %}
+  <button id="btnRefrescar" class="btn btn-outline-secondary btn-sm" onclick="location.reload()" title="Actualizar listado">
+    <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+  </button>
+{% endblock %}
 
 {% block content %}
+
+<!-- Toast: nuevos registros disponibles -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1100">
+  <div id="toastNuevos" class="toast align-items-center text-bg-primary border-0" role="alert" data-bs-autohide="false">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="bi bi-arrow-clockwise me-1"></i>
+        <span id="toastNuevosTexto">Hay nuevos registros disponibles.</span>
+        <button class="btn btn-sm btn-light ms-2" onclick="location.reload()">Actualizar</button>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
 
 <!-- Stats rápidas -->
 <div class="row g-3 mb-4">
@@ -345,5 +364,39 @@ document.querySelectorAll('.carta-row').forEach(row => {
     offcanvas.show();
   });
 });
+
+// Auto-poll: detecta nuevos registros cada 2 minutos
+(function() {
+  const totalInicial = {{ total_db }};
+  const ultimoIdInicial = {{ registros[0].id if registros else 0 }};
+  let ultimoIdConocido = ultimoIdInicial;
+  const toastEl = document.getElementById('toastNuevos');
+  const bsToast = new bootstrap.Toast(toastEl);
+
+  async function checkNuevos() {
+    try {
+      const r = await fetch('/correspondencia/api/count');
+      if (!r.ok) return;
+      const data = await r.json();
+      if (data.ultimo_id > ultimoIdConocido || data.total > totalInicial) {
+        const diff = data.total - totalInicial;
+        document.getElementById('toastNuevosTexto').textContent =
+          diff > 0
+            ? `${diff} nuevo(s) registro(s) disponible(s).`
+            : 'Hay registros actualizados disponibles.';
+        ultimoIdConocido = data.ultimo_id;
+        bsToast.show();
+        // Actualiza el botón del topbar con indicador visual
+        const btn = document.getElementById('btnRefrescar');
+        if (btn) {
+          btn.classList.replace('btn-outline-secondary', 'btn-warning');
+          btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Actualizar <span class="badge bg-dark ms-1">' + diff + '</span>';
+        }
+      }
+    } catch (_) {}
+  }
+
+  setInterval(checkNuevos, 2 * 60 * 1000); // cada 2 minutos
+})();
 </script>
 {% endblock %}

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends, Query
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, extract
 from datetime import date, datetime
@@ -8,6 +8,16 @@ from templates_config import templates
 import models, auth
 
 router = APIRouter(prefix="/correspondencia")
+
+
+@router.get("/api/count")
+async def api_count(request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"error": "no autorizado"}, status_code=401)
+    total = db.query(models.Correspondencia).count()
+    ultimo = db.query(models.Correspondencia.id).order_by(models.Correspondencia.id.desc()).scalar()
+    return JSONResponse({"total": total, "ultimo_id": ultimo or 0})
 
 
 @router.get("", response_class=HTMLResponse)
