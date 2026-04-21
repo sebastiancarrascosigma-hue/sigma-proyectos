@@ -1,13 +1,69 @@
+import os
 from fastapi import APIRouter, Request, Depends, Query
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, extract
+from sqlalchemy import or_
 from datetime import date, datetime
 from database import get_db
 from templates_config import templates
 import models, auth
 
 router = APIRouter(prefix="/correspondencia")
+
+
+@router.post("/sync")
+async def sync_correspondencia(request: Request, db: Session = Depends(get_db)):
+    """Endpoint llamado por el scraper local para sincronizar registros del Excel a la BD."""
+    api_key = request.headers.get("X-Sync-Key", "")
+    expected = os.getenv("SYNC_API_KEY", "")
+    if not expected or api_key != expected:
+        return JSONResponse({"error": "no autorizado"}, status_code=401)
+
+    body = await request.json()
+    registros = body.get("registros", [])
+
+    nuevos = 0
+    actualizados = 0
+    for rec in registros:
+        correlativo = (rec.get("Correlativo") or "").strip()
+        if not correlativo:
+            continue
+        fecha_str = (rec.get("Fecha") or "").strip()
+        try:
+            fecha = datetime.strptime(fecha_str, "%d/%m/%Y").date() if fecha_str else None
+        except ValueError:
+            fecha = None
+
+        existing = db.query(models.Correspondencia).filter_by(correlativo=correlativo).first()
+        if existing:
+            existing.fecha          = fecha
+            existing.empresas       = rec.get("Empresa(s)", "") or ""
+            existing.remitente      = rec.get("Remitente", "") or ""
+            existing.destinatario   = rec.get("Destinatario", "") or ""
+            existing.materia_macro  = rec.get("Materia Macro", "") or ""
+            existing.materia_micro  = rec.get("Materia Micro", "") or ""
+            existing.referencia     = rec.get("Referencia", "") or ""
+            existing.respondida     = rec.get("Respondida", "") or ""
+            existing.estado         = rec.get("Estado", "") or ""
+            existing.updated_at     = datetime.utcnow()
+            actualizados += 1
+        else:
+            db.add(models.Correspondencia(
+                correlativo   = correlativo,
+                fecha         = fecha,
+                empresas      = rec.get("Empresa(s)", "") or "",
+                remitente     = rec.get("Remitente", "") or "",
+                destinatario  = rec.get("Destinatario", "") or "",
+                materia_macro = rec.get("Materia Macro", "") or "",
+                materia_micro = rec.get("Materia Micro", "") or "",
+                referencia    = rec.get("Referencia", "") or "",
+                respondida    = rec.get("Respondida", "") or "",
+                estado        = rec.get("Estado", "") or "",
+            ))
+            nuevos += 1
+
+    db.commit()
+    return JSONResponse({"ok": True, "nuevos": nuevos, "actualizados": actualizados, "total": len(registros)})
 
 
 @router.get("/api/count")
