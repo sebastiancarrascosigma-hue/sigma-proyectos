@@ -58,7 +58,8 @@ def _migrate_contactos_iniciales():
 
 
 app = FastAPI(title="Sigma Proyectos")
-app.add_middleware(SessionMiddleware, secret_key="sigma-session-key-2026")
+_SESSION_SECRET = os.getenv("SESSION_SECRET", "sigma-session-key-2026")
+app.add_middleware(SessionMiddleware, secret_key=_SESSION_SECRET)
 
 run_migrations()
 models.Base.metadata.create_all(bind=database.engine)

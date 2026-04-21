@@ -1,3 +1,4 @@
+import os
 from jose import jwt, JWTError
 import bcrypt
 from datetime import datetime, timedelta
@@ -5,7 +6,7 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 import models
 
-SECRET_KEY = "sigma-energia-2026-proyectos-secret"
+SECRET_KEY = os.getenv("JWT_SECRET", "sigma-energia-2026-proyectos-secret")
 ALGORITHM = "HS256"
 EXPIRE_DAYS = 7
 

@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from templates_config import templates
+from utils.crypto import encrypt, decrypt
 import models, auth
 
 router = APIRouter(prefix="/clientes")
@@ -232,7 +233,7 @@ async def nueva_cuenta(
         nombre_sistema=nombre_sistema.strip(),
         url=url.strip() or None,
         usuario=usuario.strip(),
-        password=password,
+        password=encrypt(password),
         notas=notas.strip() or None,
         created_by=user.id,
     )
@@ -266,13 +267,32 @@ async def editar_cuenta(
         cuenta.url = url.strip() or None
         cuenta.usuario = usuario.strip()
         if password.strip():
-            cuenta.password = password
+            cuenta.password = encrypt(password)
         cuenta.notas = notas.strip() or None
         from datetime import datetime
         cuenta.updated_at = datetime.utcnow()
         db.commit()
         request.session["flash"] = {"tipo": "success", "texto": "Cuenta actualizada."}
     return RedirectResponse(f"/clientes/{cliente_id}/cuentas", status_code=302)
+
+
+@router.get("/{cliente_id}/cuentas/{cuenta_id}/password")
+async def revelar_password(
+    cliente_id: int,
+    cuenta_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"error": "no autorizado"}, status_code=401)
+    cuenta = db.query(models.CuentaCliente).filter(
+        models.CuentaCliente.id == cuenta_id,
+        models.CuentaCliente.cliente_id == cliente_id
+    ).first()
+    if not cuenta:
+        return JSONResponse({"error": "no encontrado"}, status_code=404)
+    return JSONResponse({"password": decrypt(cuenta.password)})
 
 
 @router.post("/{cliente_id}/cuentas/{cuenta_id}/eliminar")

@@ -198,13 +198,13 @@
                 <div class="d-flex align-items-center gap-2">
                   <code class="text-dark pass-field" id="pass-{{ c.id }}"
                         style="font-size:.88rem;background:#f8fafc;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0"
-                        data-pass="{{ c.password }}">••••••••</code>
+                        data-cuenta="{{ c.id }}" data-cliente="{{ cliente.id }}">••••••••</code>
                   <button class="btn btn-link btn-sm p-0 text-muted" title="Mostrar/ocultar"
-                          onclick="togglePass({{ c.id }}, this)">
+                          onclick="togglePass({{ c.id }}, {{ cliente.id }}, this)">
                     <i class="bi bi-eye"></i>
                   </button>
                   <button class="btn btn-link btn-sm p-0 text-muted" title="Copiar contraseña"
-                          onclick="copiarTexto(document.getElementById('pass-{{ c.id }}').dataset.pass, this)">
+                          onclick="copiarPass({{ c.id }}, {{ cliente.id }}, this)">
                     <i class="bi bi-clipboard"></i>
                   </button>
                 </div>
@@ -507,12 +507,33 @@ btnContacto.classList.add('d-none');
 btnCuenta.classList.remove('d-none');
 {% endif %}
 
+// Obtiene la contraseña vía endpoint seguro (sin data-pass en el HTML)
+async function fetchPassword(cuentaId, clienteId) {
+  const r = await fetch(`/clientes/${clienteId}/cuentas/${cuentaId}/password`);
+  const j = await r.json();
+  return j.password || '';
+}
+
 // Mostrar/ocultar contraseña en tarjeta
-function togglePass(id, btn) {
+async function togglePass(id, clienteId, btn) {
   const el = document.getElementById('pass-' + id);
-  const mostrar = el.textContent.trim() === '••••••••';
-  el.textContent = mostrar ? el.dataset.pass : '••••••••';
-  btn.querySelector('i').className = mostrar ? 'bi bi-eye-slash' : 'bi bi-eye';
+  if (el.textContent.trim() === '••••••••') {
+    const pwd = await fetchPassword(id, clienteId);
+    el.dataset.revealed = pwd;
+    el.textContent = pwd;
+    btn.querySelector('i').className = 'bi bi-eye-slash';
+  } else {
+    delete el.dataset.revealed;
+    el.textContent = '••••••••';
+    btn.querySelector('i').className = 'bi bi-eye';
+  }
+}
+
+// Copiar contraseña (usa cache si ya está revelada, si no fetch)
+async function copiarPass(id, clienteId, btn) {
+  const el = document.getElementById('pass-' + id);
+  const pwd = el.dataset.revealed || await fetchPassword(id, clienteId);
+  copiarTexto(pwd, btn);
 }
 
 // Mostrar/ocultar contraseña en input
