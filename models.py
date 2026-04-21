@@ -30,9 +30,10 @@ class Cliente(Base):
     activo = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    proyectos = relationship("Proyecto", back_populates="cliente")
-    cuentas   = relationship("CuentaCliente", back_populates="cliente", cascade="all, delete-orphan", order_by="CuentaCliente.nombre_sistema")
-    minutas   = relationship("Minuta", back_populates="cliente", order_by="Minuta.fecha.desc()")
+    proyectos  = relationship("Proyecto", back_populates="cliente")
+    cuentas    = relationship("CuentaCliente", back_populates="cliente", cascade="all, delete-orphan", order_by="CuentaCliente.nombre_sistema")
+    minutas    = relationship("Minuta", back_populates="cliente", order_by="Minuta.fecha.desc()")
+    contactos  = relationship("ContactoCliente", back_populates="cliente", cascade="all, delete-orphan", order_by="ContactoCliente.tipo")
 
 
 class CuentaCliente(Base):
@@ -52,6 +53,21 @@ class CuentaCliente(Base):
     cliente = relationship("Cliente", back_populates="cuentas")
 
 
+class ContactoCliente(Base):
+    __tablename__ = "contactos_cliente"
+    id         = Column(Integer, primary_key=True, index=True)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    nombre     = Column(String(150), nullable=False)
+    email      = Column(String(150), nullable=True)
+    telefono   = Column(String(30),  nullable=True)
+    cargo      = Column(String(100), nullable=True)
+    tipo       = Column(String(20),  default="adicional")  # principal / copia / adicional
+    activo     = Column(Boolean,     default=True)
+    created_at = Column(DateTime,    default=datetime.utcnow)
+
+    cliente = relationship("Cliente", back_populates="contactos")
+
+
 class Proyecto(Base):
     __tablename__ = "proyectos"
     id = Column(Integer, primary_key=True, index=True)
@@ -66,6 +82,7 @@ class Proyecto(Base):
     fecha_estimada_cierre = Column(DateTime)
     fecha_cierre_real = Column(DateTime)
     estado = Column(String(30), default="Activo")  # Activo / En Espera / Completado / Cancelado
+    moneda_contrato = Column(String(10), default="UF")  # UF / CLP
     responsable_id = Column(Integer, ForeignKey("usuarios.id"))
     created_by = Column(Integer, ForeignKey("usuarios.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -135,15 +152,19 @@ class Minuta(Base):
                                  cascade="all, delete-orphan", order_by="MinutaTema.id")
     participantes = relationship("MinutaParticipante", back_populates="minuta",
                                  cascade="all, delete-orphan", order_by="MinutaParticipante.id")
+    envios        = relationship("MinutaEnvio", back_populates="minuta",
+                                 cascade="all, delete-orphan", order_by="MinutaEnvio.enviado_at.desc()")
 
 
 class MinutaParticipante(Base):
     __tablename__ = "minuta_participantes"
-    id        = Column(Integer, primary_key=True, index=True)
-    minuta_id = Column(Integer, ForeignKey("minutas.id"), nullable=False)
-    nombre    = Column(String(150), nullable=False)
-    email     = Column(String(150))
-    empresa   = Column(String(150))
+    id            = Column(Integer, primary_key=True, index=True)
+    minuta_id     = Column(Integer, ForeignKey("minutas.id"), nullable=False)
+    nombre        = Column(String(150), nullable=False)
+    email         = Column(String(150))
+    empresa       = Column(String(150))
+    cargo         = Column(String(100), nullable=True)
+    enviar_minuta = Column(Boolean, default=True)
 
     minuta = relationship("Minuta", back_populates="participantes")
 
@@ -161,6 +182,22 @@ class MinutaTema(Base):
     minuta      = relationship("Minuta", back_populates="temas")
     proyecto    = relationship("Proyecto")
     responsable = relationship("Usuario", foreign_keys=[responsable_id])
+
+
+class MinutaEnvio(Base):
+    __tablename__ = "minuta_envios"
+    id                = Column(Integer, primary_key=True, index=True)
+    minuta_id         = Column(Integer, ForeignKey("minutas.id"), nullable=False)
+    tipo              = Column(String(20))          # "cliente" / "equipo"
+    destinatarios     = Column(Text)                # emails separados por coma
+    num_destinatarios = Column(Integer, default=0)
+    enviado_por       = Column(Integer, ForeignKey("usuarios.id"))
+    enviado_at        = Column(DateTime, default=datetime.utcnow)
+    exitoso           = Column(Boolean, default=True)
+    mensaje           = Column(Text)
+
+    minuta  = relationship("Minuta", back_populates="envios")
+    usuario = relationship("Usuario", foreign_keys=[enviado_por])
 
 
 class Correspondencia(Base):

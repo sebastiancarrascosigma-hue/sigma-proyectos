@@ -51,9 +51,16 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Valor Contrato (UF o CLP)</label>
-              <input type="number" name="valor_contrato" class="form-control" step="0.01"
-                     value="{{ proyecto.valor_contrato or '' }}" placeholder="Opcional">
+              <label class="form-label">Valor Contrato</label>
+              <div class="input-group">
+                <select name="moneda_contrato" class="form-select" style="max-width:76px;flex-shrink:0">
+                  <option value="UF" {% if not proyecto or (proyecto.moneda_contrato or 'UF') == 'UF' %}selected{% endif %}>UF</option>
+                  <option value="CLP" {% if proyecto and proyecto.moneda_contrato == 'CLP' %}selected{% endif %}>CLP</option>
+                </select>
+                <input type="number" name="valor_contrato" class="form-control" step="0.01" min="0"
+                       value="{{ proyecto.valor_contrato or '' }}" placeholder="Opcional">
+              </div>
+              <div class="form-text">UF para contratos indexados · CLP para montos fijos en pesos</div>
             </div>
 
             <div class="col-md-4">

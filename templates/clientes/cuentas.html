@@ -1,35 +1,41 @@
 {% extends "base.html" %}
-{% block title %}Cuentas · {{ cliente.nombre }} · Sigma Proyectos{% endblock %}
+{% block title %}{{ cliente.nombre }} · Sigma Proyectos{% endblock %}
 {% block page_title %}
   <a href="/clientes" class="text-decoration-none text-muted small me-2">
     <i class="bi bi-arrow-left"></i> Clientes
   </a>
-  Cuentas · {{ cliente.nombre }}
+  {{ cliente.nombre }}
 {% endblock %}
 {% block topbar_actions %}
-  <button class="btn btn-primary btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalNueva">
+  <button id="btnTopContacto" class="btn btn-success btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalNuevoContacto">
+    <i class="bi bi-person-plus me-1"></i>Agregar Contacto
+  </button>
+  <button id="btnTopCuenta" class="btn btn-primary btn-sm fw-semibold d-none" data-bs-toggle="modal" data-bs-target="#modalNueva">
     <i class="bi bi-plus-lg me-1"></i>Agregar Cuenta
   </button>
 {% endblock %}
 
 {% block content %}
 
-<!-- Info cliente -->
-<div class="card mb-4" style="border-left: 4px solid #3b82f6">
-  <div class="card-body py-3">
+<!-- Info banner -->
+<div class="card mb-3" style="border-left:4px solid #3b82f6">
+  <div class="card-body py-2 px-4">
     <div class="d-flex align-items-center gap-4 flex-wrap">
       <div>
-        <div class="small text-muted fw-semibold text-uppercase" style="letter-spacing:.06em">Cliente</div>
+        <div class="small text-muted fw-semibold text-uppercase" style="letter-spacing:.06em;font-size:.67rem">Cliente</div>
         <div class="fw-bold text-dark">{{ cliente.nombre }}</div>
       </div>
-      {% if cliente.contacto_nombre %}
+      {% if cliente.rut %}
       <div>
-        <div class="small text-muted fw-semibold text-uppercase" style="letter-spacing:.06em">Contacto</div>
-        <div class="fw-semibold text-dark small">{{ cliente.contacto_nombre }}</div>
+        <div class="small text-muted fw-semibold text-uppercase" style="letter-spacing:.06em;font-size:.67rem">RUT</div>
+        <div class="small text-dark">{{ cliente.rut }}</div>
       </div>
       {% endif %}
-      <div class="ms-auto">
-        <span class="badge" style="background:#eff6ff; color:#1d4ed8; font-size:.85rem; padding: 6px 14px">
+      <div class="ms-auto d-flex gap-2">
+        <span class="badge" style="background:#f0fdf4;color:#166534;font-size:.82rem;padding:5px 12px">
+          <i class="bi bi-people me-1"></i>{{ cliente.contactos | length }} contacto(s)
+        </span>
+        <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.82rem;padding:5px 12px">
           <i class="bi bi-key me-1"></i>{{ cliente.cuentas | length }} cuenta(s)
         </span>
       </div>
@@ -37,122 +43,327 @@
   </div>
 </div>
 
-<!-- Aviso de seguridad -->
-<div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-4 small" role="alert">
-  <i class="bi bi-shield-exclamation flex-shrink-0 mt-1"></i>
-  <div>
-    <strong>Repositorio interno de credenciales.</strong>
-    Esta información es confidencial y de uso exclusivo del equipo Sigma Energía.
-    Las contraseñas se muestran enmascaradas — usa el botón <i class="bi bi-eye"></i> para revelar o
-    <i class="bi bi-clipboard"></i> para copiar al portapapeles.
-  </div>
-</div>
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-3" id="clienteTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold {% if active_tab != 'cuentas' %}active{% endif %}"
+            id="tab-contactos-btn" data-bs-toggle="tab" data-bs-target="#tabContactos"
+            type="button" role="tab">
+      <i class="bi bi-people me-1 text-success"></i>Contactos
+      <span class="badge rounded-pill bg-success ms-1" style="font-size:.7rem">{{ cliente.contactos | length }}</span>
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold {% if active_tab == 'cuentas' %}active{% endif %}"
+            id="tab-cuentas-btn" data-bs-toggle="tab" data-bs-target="#tabCuentas"
+            type="button" role="tab">
+      <i class="bi bi-key me-1 text-primary"></i>Credenciales
+      <span class="badge rounded-pill bg-primary ms-1" style="font-size:.7rem">{{ cliente.cuentas | length }}</span>
+    </button>
+  </li>
+</ul>
 
-<!-- Tabla de cuentas -->
-{% if cliente.cuentas %}
-<div class="row g-3">
-  {% for c in cliente.cuentas %}
-  <div class="col-12">
-    <div class="card" id="cuenta-{{ c.id }}">
-      <div class="card-body py-3 px-4">
-        <div class="row align-items-center g-3">
+<div class="tab-content">
 
-          <!-- Sistema -->
-          <div class="col-md-3">
-            <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.05em; font-size:.67rem">Sistema / Portal</div>
-            <div class="fw-bold text-dark">{{ c.nombre_sistema }}</div>
-            {% if c.url %}
-            <a href="{{ c.url }}" target="_blank" rel="noopener noreferrer"
-               class="small text-primary text-decoration-none">
-              <i class="bi bi-box-arrow-up-right me-1"></i>Abrir sitio
-            </a>
-            {% endif %}
-          </div>
+  <!-- ════ TAB CONTACTOS ════ -->
+  <div class="tab-pane fade {% if active_tab != 'cuentas' %}show active{% endif %}" id="tabContactos" role="tabpanel">
 
-          <!-- Usuario -->
-          <div class="col-md-3">
-            <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.05em; font-size:.67rem">Usuario</div>
-            <div class="d-flex align-items-center gap-2">
-              <code class="text-dark" style="font-size:.88rem; background:#f8fafc; padding:2px 8px; border-radius:6px; border:1px solid #e2e8f0">
-                {{ c.usuario }}
-              </code>
-              <button class="btn btn-link btn-sm p-0 text-muted" title="Copiar usuario"
-                      onclick="copiarTexto('{{ c.usuario }}', this)">
-                <i class="bi bi-clipboard"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Contraseña -->
-          <div class="col-md-3">
-            <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.05em; font-size:.67rem">Contraseña</div>
-            <div class="d-flex align-items-center gap-2">
-              <code class="text-dark pass-field" id="pass-{{ c.id }}"
-                    style="font-size:.88rem; background:#f8fafc; padding:2px 8px; border-radius:6px; border:1px solid #e2e8f0"
-                    data-pass="{{ c.password }}">
-                ••••••••
-              </code>
-              <button class="btn btn-link btn-sm p-0 text-muted" title="Mostrar/ocultar contraseña"
-                      onclick="togglePass({{ c.id }}, this)">
-                <i class="bi bi-eye"></i>
-              </button>
-              <button class="btn btn-link btn-sm p-0 text-muted" title="Copiar contraseña"
-                      onclick="copiarTexto(document.getElementById('pass-{{ c.id }}').dataset.pass, this)">
-                <i class="bi bi-clipboard"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Notas + Acciones -->
-          <div class="col-md-3 d-flex align-items-center justify-content-between gap-2">
-            <div class="flex-grow-1">
-              {% if c.notas %}
-              <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.05em; font-size:.67rem">Notas</div>
-              <div class="small text-muted" style="line-height:1.4">{{ c.notas }}</div>
-              {% endif %}
-            </div>
-            <div class="d-flex gap-1 flex-shrink-0">
-              <button class="btn btn-outline-secondary btn-sm" title="Editar"
-                      data-bs-toggle="modal"
-                      data-bs-target="#modalEditar{{ c.id }}">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <form method="post" action="/clientes/{{ cliente.id }}/cuentas/{{ c.id }}/eliminar">
-                <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar"
-                        onclick="return confirm('¿Eliminar esta cuenta? Esta acción no se puede deshacer.')">
-                  <i class="bi bi-trash3"></i>
+    {% if cliente.contactos %}
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" style="font-size:.88rem">
+          <thead style="background:#f8fafc">
+            <tr>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Nombre</th>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Cargo</th>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Email</th>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Teléfono</th>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Tipo</th>
+              <th style="padding:10px 16px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ct in cliente.contactos | sort(attribute='tipo') %}
+            <tr>
+              <td style="padding:10px 16px">
+                <div class="fw-semibold text-dark">{{ ct.nombre }}</div>
+              </td>
+              <td style="padding:10px 16px">
+                <span class="text-muted small">{{ ct.cargo or '—' }}</span>
+              </td>
+              <td style="padding:10px 16px">
+                {% if ct.email %}
+                <a href="mailto:{{ ct.email }}" class="text-decoration-none small">{{ ct.email }}</a>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td style="padding:10px 16px">
+                <span class="small text-muted">{{ ct.telefono or '—' }}</span>
+              </td>
+              <td style="padding:10px 16px">
+                {% if ct.tipo == 'principal' %}
+                <span class="badge" style="background:#eff6ff;color:#1d4ed8">
+                  <i class="bi bi-star-fill me-1" style="font-size:.65rem"></i>Principal
+                </span>
+                {% elif ct.tipo == 'copia' %}
+                <span class="badge" style="background:#f0fdf4;color:#166534">
+                  <i class="bi bi-envelope-check me-1" style="font-size:.65rem"></i>Copia
+                </span>
+                {% else %}
+                <span class="badge bg-light text-secondary border">Adicional</span>
+                {% endif %}
+              </td>
+              <td style="padding:10px 16px;text-align:right">
+                <button class="btn btn-outline-secondary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalEditarContacto{{ ct.id }}">
+                  <i class="bi bi-pencil"></i>
                 </button>
-              </form>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Metadata -->
-        <div class="mt-2 pt-2 border-top d-flex gap-3 small text-muted">
-          <span><i class="bi bi-clock me-1"></i>Agregada {{ c.created_at.strftime('%d %b %Y') }}</span>
-          {% if c.updated_at and c.updated_at != c.created_at %}
-          <span><i class="bi bi-pencil me-1"></i>Editada {{ c.updated_at.strftime('%d %b %Y') }}</span>
-          {% endif %}
-        </div>
+                <form method="post" action="/clientes/{{ cliente.id }}/contactos/{{ ct.id }}/eliminar" class="d-inline">
+                  <button type="submit" class="btn btn-outline-danger btn-sm"
+                          onclick="return confirm('¿Eliminar este contacto?')">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
+
+    <!-- Leyenda -->
+    <div class="mt-2 small text-muted d-flex gap-3 flex-wrap">
+      <span><span class="badge" style="background:#eff6ff;color:#1d4ed8">Principal</span> recibe la minuta directamente</span>
+      <span><span class="badge" style="background:#f0fdf4;color:#166534">Copia</span> recibe copia según matriz de comunicaciones</span>
+      <span><span class="badge bg-light text-secondary border">Adicional</span> se agrega automáticamente desde minutas</span>
+    </div>
+
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-people display-4 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">Sin contactos registrados</h5>
+        <p class="text-muted small">Agrega el contacto principal y los destinatarios según la matriz de comunicaciones.</p>
+        <button class="btn btn-success mt-1" data-bs-toggle="modal" data-bs-target="#modalNuevoContacto">
+          <i class="bi bi-person-plus me-1"></i>Agregar primer contacto
+        </button>
+      </div>
+    </div>
+    {% endif %}
   </div>
-  {% endfor %}
+
+  <!-- ════ TAB CREDENCIALES ════ -->
+  <div class="tab-pane fade {% if active_tab == 'cuentas' %}show active{% endif %}" id="tabCuentas" role="tabpanel">
+
+    <!-- Aviso de seguridad -->
+    <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3 small" role="alert">
+      <i class="bi bi-shield-exclamation flex-shrink-0 mt-1"></i>
+      <div>
+        <strong>Repositorio interno de credenciales.</strong>
+        Esta información es confidencial y de uso exclusivo del equipo Sigma Energía.
+        Las contraseñas se muestran enmascaradas — usa <i class="bi bi-eye"></i> para revelar o
+        <i class="bi bi-clipboard"></i> para copiar.
+      </div>
+    </div>
+
+    {% if cliente.cuentas %}
+    <div class="row g-3">
+      {% for c in cliente.cuentas %}
+      <div class="col-12">
+        <div class="card" id="cuenta-{{ c.id }}">
+          <div class="card-body py-3 px-4">
+            <div class="row align-items-center g-3">
+              <div class="col-md-3">
+                <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.05em;font-size:.67rem">Sistema / Portal</div>
+                <div class="fw-bold text-dark">{{ c.nombre_sistema }}</div>
+                {% if c.url %}
+                <a href="{{ c.url }}" target="_blank" rel="noopener noreferrer" class="small text-primary text-decoration-none">
+                  <i class="bi bi-box-arrow-up-right me-1"></i>Abrir sitio
+                </a>
+                {% endif %}
+              </div>
+              <div class="col-md-3">
+                <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.05em;font-size:.67rem">Usuario</div>
+                <div class="d-flex align-items-center gap-2">
+                  <code class="text-dark" style="font-size:.88rem;background:#f8fafc;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0">{{ c.usuario }}</code>
+                  <button class="btn btn-link btn-sm p-0 text-muted" title="Copiar usuario"
+                          onclick="copiarTexto('{{ c.usuario }}', this)">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.05em;font-size:.67rem">Contraseña</div>
+                <div class="d-flex align-items-center gap-2">
+                  <code class="text-dark pass-field" id="pass-{{ c.id }}"
+                        style="font-size:.88rem;background:#f8fafc;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0"
+                        data-pass="{{ c.password }}">••••••••</code>
+                  <button class="btn btn-link btn-sm p-0 text-muted" title="Mostrar/ocultar"
+                          onclick="togglePass({{ c.id }}, this)">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button class="btn btn-link btn-sm p-0 text-muted" title="Copiar contraseña"
+                          onclick="copiarTexto(document.getElementById('pass-{{ c.id }}').dataset.pass, this)">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-3 d-flex align-items-center justify-content-between gap-2">
+                <div class="flex-grow-1">
+                  {% if c.notas %}
+                  <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.05em;font-size:.67rem">Notas</div>
+                  <div class="small text-muted" style="line-height:1.4">{{ c.notas }}</div>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-1 flex-shrink-0">
+                  <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal"
+                          data-bs-target="#modalEditar{{ c.id }}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <form method="post" action="/clientes/{{ cliente.id }}/cuentas/{{ c.id }}/eliminar">
+                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                            onclick="return confirm('¿Eliminar esta cuenta?')">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+            <div class="mt-2 pt-2 border-top d-flex gap-3 small text-muted">
+              <span><i class="bi bi-clock me-1"></i>Agregada {{ c.created_at.strftime('%d %b %Y') }}</span>
+              {% if c.updated_at and c.updated_at != c.created_at %}
+              <span><i class="bi bi-pencil me-1"></i>Editada {{ c.updated_at.strftime('%d %b %Y') }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-key display-4 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">Sin cuentas registradas</h5>
+        <p class="text-muted small">Agrega las credenciales que el cliente ha entregado a Sigma Energía.</p>
+        <button class="btn btn-primary mt-1" data-bs-toggle="modal" data-bs-target="#modalNueva">
+          <i class="bi bi-plus-lg me-1"></i>Agregar primera cuenta
+        </button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
 </div>
 
-{% else %}
-<div class="card">
-  <div class="card-body text-center py-6">
-    <i class="bi bi-key display-4 text-muted d-block mb-3"></i>
-    <h5 class="text-muted">Sin cuentas registradas</h5>
-    <p class="text-muted small">Agrega las credenciales que el cliente ha entregado a Sigma Energía.</p>
-    <button class="btn btn-primary mt-1" data-bs-toggle="modal" data-bs-target="#modalNueva">
-      <i class="bi bi-plus-lg me-1"></i>Agregar primera cuenta
-    </button>
+
+<!-- ═══ MODAL: Nuevo Contacto ═══ -->
+<div class="modal fade" id="modalNuevoContacto" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-person-plus me-2 text-success"></i>Agregar Contacto
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/clientes/{{ cliente.id }}/contactos/nuevo">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" required
+                     placeholder="Nombre completo del contacto">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cargo</label>
+              <input type="text" name="cargo" class="form-control"
+                     placeholder="Ej: Gerente de Proyectos">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo *</label>
+              <select name="tipo" class="form-select" required>
+                <option value="adicional">Adicional</option>
+                <option value="principal">Principal (recibe minuta)</option>
+                <option value="copia">Copia (matriz comunicaciones)</option>
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control"
+                     placeholder="contacto@empresa.cl">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Teléfono</label>
+              <input type="text" name="telefono" class="form-control"
+                     placeholder="+56 9 …">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success fw-semibold">
+            <i class="bi bi-check-lg me-1"></i>Guardar Contacto
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
-{% endif %}
+
+
+<!-- ═══ MODALES: Editar cada contacto ═══ -->
+{% for ct in cliente.contactos %}
+<div class="modal fade" id="modalEditarContacto{{ ct.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-pencil me-2 text-warning"></i>Editar Contacto · {{ ct.nombre }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/clientes/{{ cliente.id }}/contactos/{{ ct.id }}/editar">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" required value="{{ ct.nombre }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cargo</label>
+              <input type="text" name="cargo" class="form-control" value="{{ ct.cargo or '' }}"
+                     placeholder="Ej: Gerente de Proyectos">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo *</label>
+              <select name="tipo" class="form-select" required>
+                <option value="adicional" {% if ct.tipo == 'adicional' %}selected{% endif %}>Adicional</option>
+                <option value="principal" {% if ct.tipo == 'principal' %}selected{% endif %}>Principal (recibe minuta)</option>
+                <option value="copia" {% if ct.tipo == 'copia' %}selected{% endif %}>Copia (matriz comunicaciones)</option>
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control" value="{{ ct.email or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Teléfono</label>
+              <input type="text" name="telefono" class="form-control" value="{{ ct.telefono or '' }}">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning fw-semibold text-dark">
+            <i class="bi bi-check-lg me-1"></i>Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
 
 
 <!-- ═══ MODAL: Nueva Cuenta ═══ -->
@@ -175,29 +386,24 @@
             </div>
             <div class="col-12">
               <label class="form-label">URL (opcional)</label>
-              <input type="url" name="url" class="form-control"
-                     placeholder="https://portal.coordinador.cl">
+              <input type="url" name="url" class="form-control" placeholder="https://…">
             </div>
             <div class="col-md-6">
               <label class="form-label">Usuario *</label>
-              <input type="text" name="usuario" class="form-control" required
-                     placeholder="usuario@empresa.cl" autocomplete="off">
+              <input type="text" name="usuario" class="form-control" required autocomplete="off">
             </div>
             <div class="col-md-6">
               <label class="form-label">Contraseña *</label>
               <div class="input-group">
-                <input type="password" name="password" id="passNueva" class="form-control" required
-                       autocomplete="new-password" placeholder="••••••••">
-                <button type="button" class="btn btn-outline-secondary"
-                        onclick="toggleInputPass('passNueva', this)">
+                <input type="password" name="password" id="passNueva" class="form-control" required autocomplete="new-password">
+                <button type="button" class="btn btn-outline-secondary" onclick="toggleInputPass('passNueva', this)">
                   <i class="bi bi-eye"></i>
                 </button>
               </div>
             </div>
             <div class="col-12">
               <label class="form-label">Notas (opcional)</label>
-              <textarea name="notas" class="form-control" rows="2"
-                        placeholder="Ej: Cuenta de acceso a módulo tarifario, válida hasta dic 2026…"></textarea>
+              <textarea name="notas" class="form-control" rows="2"></textarea>
             </div>
           </div>
         </div>
@@ -229,26 +435,22 @@
           <div class="row g-3">
             <div class="col-12">
               <label class="form-label">Sistema / Portal *</label>
-              <input type="text" name="nombre_sistema" class="form-control" required
-                     value="{{ c.nombre_sistema }}">
+              <input type="text" name="nombre_sistema" class="form-control" required value="{{ c.nombre_sistema }}">
             </div>
             <div class="col-12">
               <label class="form-label">URL (opcional)</label>
-              <input type="url" name="url" class="form-control"
-                     value="{{ c.url or '' }}">
+              <input type="url" name="url" class="form-control" value="{{ c.url or '' }}">
             </div>
             <div class="col-md-6">
               <label class="form-label">Usuario *</label>
-              <input type="text" name="usuario" class="form-control" required
-                     value="{{ c.usuario }}" autocomplete="off">
+              <input type="text" name="usuario" class="form-control" required value="{{ c.usuario }}" autocomplete="off">
             </div>
             <div class="col-md-6">
               <label class="form-label">Contraseña</label>
               <div class="input-group">
                 <input type="password" name="password" id="passEdit{{ c.id }}" class="form-control"
                        autocomplete="new-password" placeholder="Dejar en blanco para no cambiar">
-                <button type="button" class="btn btn-outline-secondary"
-                        onclick="toggleInputPass('passEdit{{ c.id }}', this)">
+                <button type="button" class="btn btn-outline-secondary" onclick="toggleInputPass('passEdit{{ c.id }}', this)">
                   <i class="bi bi-eye"></i>
                 </button>
               </div>
@@ -272,10 +474,39 @@
 </div>
 {% endfor %}
 
+{% if flash %}
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div class="toast show align-items-center text-bg-{{ flash.tipo }} border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body">{{ flash.texto }}</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Cambio de tabs → actualiza botón en topbar
+const btnContacto = document.getElementById('btnTopContacto');
+const btnCuenta   = document.getElementById('btnTopCuenta');
+
+document.querySelectorAll('#clienteTabs button[data-bs-toggle="tab"]').forEach(tab => {
+  tab.addEventListener('shown.bs.tab', e => {
+    const esContactos = e.target.dataset.bsTarget === '#tabContactos';
+    btnContacto.classList.toggle('d-none', !esContactos);
+    btnCuenta.classList.toggle('d-none', esContactos);
+  });
+});
+
+// Estado inicial según active_tab
+{% if active_tab == 'cuentas' %}
+btnContacto.classList.add('d-none');
+btnCuenta.classList.remove('d-none');
+{% endif %}
+
 // Mostrar/ocultar contraseña en tarjeta
 function togglePass(id, btn) {
   const el = document.getElementById('pass-' + id);
@@ -301,5 +532,13 @@ function copiarTexto(texto, btn) {
     setTimeout(() => { icon.className = original; }, 1500);
   });
 }
+
+// Auto-cerrar toast
+setTimeout(() => {
+  document.querySelectorAll('.toast.show').forEach(t => {
+    const bsToast = bootstrap.Toast.getOrCreateInstance(t);
+    bsToast.hide();
+  });
+}, 3500);
 </script>
 {% endblock %}

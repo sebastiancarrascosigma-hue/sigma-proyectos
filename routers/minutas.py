@@ -30,10 +30,18 @@ def _proyectos_como_json(proyectos):
 def _clientes_como_json(clientes):
     data = {}
     for c in clientes:
+        contactos = [
+            {
+                "nombre": ct.nombre,
+                "email": ct.email or "",
+                "cargo": ct.cargo or "",
+                "tipo": ct.tipo,
+            }
+            for ct in c.contactos if ct.activo
+        ]
         data[c.id] = {
             "nombre": c.nombre,
-            "contacto_nombre": c.contacto_nombre or "",
-            "contacto_email": c.contacto_email or "",
+            "contactos": contactos,
         }
     return json.dumps(data, ensure_ascii=False)
 
@@ -70,6 +78,31 @@ async def nueva_form(request: Request, db: Session = Depends(get_db)):
     })
 
 
+def _auto_agregar_contactos(db, cliente_id: int, part_nombres, part_emails, part_empresas, part_cargos, parte_enviar):
+    """Agrega automáticamente participantes externos como contactos adicionales del cliente."""
+    for i, nombre in enumerate(part_nombres):
+        nombre = nombre.strip()
+        if not nombre:
+            continue
+        empresa = (part_empresas[i].strip() if i < len(part_empresas) else "")
+        email = (part_emails[i].strip() if i < len(part_emails) else "")
+        cargo = (part_cargos[i].strip() if i < len(part_cargos) else "")
+        if empresa == "Sigma Energía" or not email:
+            continue
+        existing = db.query(models.ContactoCliente).filter(
+            models.ContactoCliente.cliente_id == cliente_id,
+            models.ContactoCliente.email == email,
+        ).first()
+        if not existing:
+            db.add(models.ContactoCliente(
+                cliente_id=cliente_id,
+                nombre=nombre,
+                email=email,
+                cargo=cargo or None,
+                tipo="adicional",
+            ))
+
+
 @router.post("/nueva")
 async def nueva_submit(
     request: Request,
@@ -77,12 +110,12 @@ async def nueva_submit(
     titulo: str = Form(...),
     fecha: str = Form(...),
     resumen: str = Form(""),
-    # Participantes
     part_nombres: List[str] = Form(default=[]),
     part_emails: List[str] = Form(default=[]),
     part_empresas: List[str] = Form(default=[]),
-    # Temas
-    proyecto_ids: List[int] = Form(default=[]),
+    part_cargos: List[str] = Form(default=[]),
+    part_enviar: List[str] = Form(default=[]),
+    proyecto_ids: List[str] = Form(default=[]),
     lo_tratados: List[str] = Form(default=[]),
     acuerdos_list: List[str] = Form(default=[]),
     responsable_ids: List[str] = Form(default=[]),
@@ -113,10 +146,18 @@ async def nueva_submit(
             nombre=nombre,
             email=(part_emails[i].strip() if i < len(part_emails) else "") or None,
             empresa=(part_empresas[i].strip() if i < len(part_empresas) else "") or None,
+            cargo=(part_cargos[i].strip() if i < len(part_cargos) else "") or None,
+            enviar_minuta=(part_enviar[i] == "1" if i < len(part_enviar) else True),
         ))
 
-    # Temas
-    for i, pid in enumerate(proyecto_ids):
+    _auto_agregar_contactos(db, cliente_id, part_nombres, part_emails, part_empresas, part_cargos, part_enviar)
+
+    # Temas (un registro por punto; proyecto_ids puede repetirse para multi-punto)
+    for i, pid_raw in enumerate(proyecto_ids):
+        pid_str = (pid_raw or "").strip()
+        if not pid_str or not pid_str.isdigit():
+            continue
+        pid = int(pid_str)
         tratado = lo_tratados[i].strip() if i < len(lo_tratados) else ""
         acuerdo = acuerdos_list[i].strip() if i < len(acuerdos_list) else ""
         resp_raw = responsable_ids[i] if i < len(responsable_ids) else ""
@@ -193,7 +234,13 @@ async def editar_form(minuta_id: int, request: Request, db: Session = Depends(ge
     usuarios  = db.query(models.Usuario).filter(models.Usuario.activo == True).order_by(models.Usuario.nombre).all()
 
     participantes_json = json.dumps([
-        {"nombre": p.nombre, "email": p.email or "", "empresa": p.empresa or ""}
+        {
+            "nombre": p.nombre,
+            "email": p.email or "",
+            "empresa": p.empresa or "",
+            "cargo": p.cargo or "",
+            "enviarMinuta": p.enviar_minuta if p.enviar_minuta is not None else True,
+        }
         for p in minuta.participantes
     ], ensure_ascii=False)
 
@@ -232,7 +279,9 @@ async def editar_submit(
     part_nombres: List[str] = Form(default=[]),
     part_emails: List[str] = Form(default=[]),
     part_empresas: List[str] = Form(default=[]),
-    proyecto_ids: List[int] = Form(default=[]),
+    part_cargos: List[str] = Form(default=[]),
+    part_enviar: List[str] = Form(default=[]),
+    proyecto_ids: List[str] = Form(default=[]),
     lo_tratados: List[str] = Form(default=[]),
     acuerdos_list: List[str] = Form(default=[]),
     responsable_ids: List[str] = Form(default=[]),
@@ -268,9 +317,17 @@ async def editar_submit(
             nombre=nombre,
             email=(part_emails[i].strip() if i < len(part_emails) else "") or None,
             empresa=(part_empresas[i].strip() if i < len(part_empresas) else "") or None,
+            cargo=(part_cargos[i].strip() if i < len(part_cargos) else "") or None,
+            enviar_minuta=(part_enviar[i] == "1" if i < len(part_enviar) else True),
         ))
 
-    for i, pid in enumerate(proyecto_ids):
+    _auto_agregar_contactos(db, cliente_id, part_nombres, part_emails, part_empresas, part_cargos, part_enviar)
+
+    for i, pid_raw in enumerate(proyecto_ids):
+        pid_str = (pid_raw or "").strip()
+        if not pid_str or not pid_str.isdigit():
+            continue
+        pid = int(pid_str)
         tratado = lo_tratados[i].strip() if i < len(lo_tratados) else ""
         acuerdo = acuerdos_list[i].strip() if i < len(acuerdos_list) else ""
         resp_raw = responsable_ids[i] if i < len(responsable_ids) else ""
@@ -302,17 +359,22 @@ async def notificar_equipo(minuta_id: int, request: Request, db: Session = Depen
     if not minuta:
         return RedirectResponse("/minutas", status_code=302)
 
-    # Enviar solo a los participantes de la minuta que tengan email
     emails = [p.email for p in minuta.participantes if p.email and p.email.strip()]
-
     ok, mensaje = enviar_notificacion_interna(minuta, emails)
+
+    db.add(models.MinutaEnvio(
+        minuta_id=minuta_id,
+        tipo="equipo",
+        destinatarios=", ".join(emails),
+        num_destinatarios=len(emails),
+        enviado_por=user.id,
+        exitoso=ok,
+        mensaje=mensaje,
+    ))
     if ok:
         minuta.notificacion_enviada = True
-        db.commit()
-        request.session["flash"] = {"tipo": "success", "texto": mensaje}
-    else:
-        request.session["flash"] = {"tipo": "danger", "texto": mensaje}
-
+    db.commit()
+    request.session["flash"] = {"tipo": "success" if ok else "danger", "texto": mensaje}
     return RedirectResponse(f"/minutas/{minuta_id}", status_code=302)
 
 
@@ -325,16 +387,25 @@ async def enviar(minuta_id: int, request: Request, db: Session = Depends(get_db)
     if not minuta:
         return RedirectResponse("/minutas", status_code=302)
 
-    destinatarios = [p.email for p in minuta.participantes if p.email and p.email.strip()]
+    destinatarios = [
+        p.email for p in minuta.participantes
+        if p.email and p.email.strip() and (p.enviar_minuta if p.enviar_minuta is not None else True)
+    ]
     ok, mensaje = enviar_minuta(minuta, destinatarios)
 
+    db.add(models.MinutaEnvio(
+        minuta_id=minuta_id,
+        tipo="cliente",
+        destinatarios=", ".join(destinatarios),
+        num_destinatarios=len(destinatarios),
+        enviado_por=user.id,
+        exitoso=ok,
+        mensaje=mensaje,
+    ))
     if ok:
         minuta.email_enviado = True
-        db.commit()
-        request.session["flash"] = {"tipo": "success", "texto": mensaje}
-    else:
-        request.session["flash"] = {"tipo": "danger", "texto": mensaje}
-
+    db.commit()
+    request.session["flash"] = {"tipo": "success" if ok else "danger", "texto": mensaje}
     return RedirectResponse(f"/minutas/{minuta_id}", status_code=302)
 
 

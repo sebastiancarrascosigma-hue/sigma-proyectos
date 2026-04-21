@@ -18,7 +18,11 @@ def run_migrations():
         # minuta_temas: fecha_estimada_respuesta agregada después
         "ALTER TABLE minuta_temas ADD COLUMN IF NOT EXISTS fecha_estimada_respuesta DATE",
         "ALTER TABLE comentarios ADD COLUMN IF NOT EXISTS minuta_id INTEGER REFERENCES minutas(id) ON DELETE SET NULL",
-        # subactividades y documentos: create_all las crea si no existen
+        # participantes: campos agregados para cargo y selector de envío
+        "ALTER TABLE minuta_participantes ADD COLUMN IF NOT EXISTS cargo VARCHAR(100)",
+        "ALTER TABLE minuta_participantes ADD COLUMN IF NOT EXISTS enviar_minuta BOOLEAN DEFAULT TRUE",
+        # proyectos: moneda del contrato
+        "ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS moneda_contrato VARCHAR(10) DEFAULT 'UF'",
     ]
     with database.engine.connect() as conn:
         for stmt in stmts:
@@ -29,11 +33,36 @@ def run_migrations():
         conn.commit()
 
 
+def _migrate_contactos_iniciales():
+    """Migra contactos existentes de Cliente.contacto_* a la tabla contactos_cliente."""
+    from sqlalchemy import text
+    with database.engine.connect() as conn:
+        try:
+            result = conn.execute(text(
+                "SELECT id, contacto_nombre, contacto_email, contacto_telefono FROM clientes "
+                "WHERE contacto_nombre IS NOT NULL AND contacto_nombre != '' "
+                "AND id NOT IN (SELECT DISTINCT cliente_id FROM contactos_cliente WHERE tipo='principal')"
+            ))
+            rows = result.fetchall()
+            for row in rows:
+                conn.execute(text(
+                    "INSERT INTO contactos_cliente "
+                    "(cliente_id, nombre, email, telefono, tipo, activo, created_at) "
+                    "VALUES (:cid, :nombre, :email, :telefono, 'principal', TRUE, CURRENT_TIMESTAMP)"
+                ), {"cid": row[0], "nombre": row[1], "email": row[2] or "", "telefono": row[3] or ""})
+            conn.commit()
+            if rows:
+                print(f"[migrate_contactos] {len(rows)} contacto(s) migrado(s).")
+        except Exception as e:
+            print(f"[migrate_contactos] {e}")
+
+
 app = FastAPI(title="Sigma Proyectos")
 app.add_middleware(SessionMiddleware, secret_key="sigma-session-key-2026")
 
 run_migrations()
 models.Base.metadata.create_all(bind=database.engine)
+_migrate_contactos_iniciales()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

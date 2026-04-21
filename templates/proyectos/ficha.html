@@ -74,7 +74,14 @@
     <div class="ficha-meta-label"><i class="bi bi-currency-dollar me-1"></i>Valor Contrato</div>
     <div class="ficha-meta-value">
       {% if proyecto.valor_contrato %}
-        {{ "{:,.0f}".format(proyecto.valor_contrato) }}
+        {% set moneda = proyecto.moneda_contrato or 'UF' %}
+        {% if moneda == 'CLP' %}
+          <span class="badge bg-success-subtle text-success border me-1" style="font-size:.75rem">CLP</span>
+          $&nbsp;{{ "{:,.0f}".format(proyecto.valor_contrato) }}
+        {% else %}
+          <span class="badge bg-primary-subtle text-primary border me-1" style="font-size:.75rem">UF</span>
+          {{ "{:,.2f}".format(proyecto.valor_contrato) }}
+        {% endif %}
       {% else %}—{% endif %}
     </div>
   </div>

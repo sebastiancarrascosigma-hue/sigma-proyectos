@@ -106,11 +106,111 @@ async def cuentas(cliente_id: int, request: Request, db: Session = Depends(get_d
     cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
     if not cliente:
         return RedirectResponse("/clientes", status_code=302)
+    active_tab = request.query_params.get("tab", "contactos")
     return templates.TemplateResponse(request, "clientes/cuentas.html", {
         "current_user": user,
         "cliente": cliente,
+        "active_tab": active_tab,
         "flash": request.session.pop("flash", None),
     })
+
+
+# ── Contactos del cliente ──────────────────────────────────────────────────
+
+def _asegurar_tipo_unico(db, cliente_id: int, tipo: str, excluir_id: int = None):
+    """Demota a 'adicional' el contacto existente de ese tipo (solo uno permitido)."""
+    q = db.query(models.ContactoCliente).filter(
+        models.ContactoCliente.cliente_id == cliente_id,
+        models.ContactoCliente.tipo == tipo,
+        models.ContactoCliente.activo == True,
+    )
+    if excluir_id:
+        q = q.filter(models.ContactoCliente.id != excluir_id)
+    existing = q.first()
+    if existing:
+        existing.tipo = "adicional"
+
+
+@router.post("/{cliente_id}/contactos/nuevo")
+async def nuevo_contacto(
+    cliente_id: int,
+    request: Request,
+    nombre: str = Form(...),
+    email: str = Form(""),
+    telefono: str = Form(""),
+    cargo: str = Form(""),
+    tipo: str = Form("adicional"),
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    if tipo in ("principal", "copia"):
+        _asegurar_tipo_unico(db, cliente_id, tipo)
+    db.add(models.ContactoCliente(
+        cliente_id=cliente_id,
+        nombre=nombre.strip(),
+        email=email.strip() or None,
+        telefono=telefono.strip() or None,
+        cargo=cargo.strip() or None,
+        tipo=tipo,
+    ))
+    db.commit()
+    request.session["flash"] = {"tipo": "success", "texto": f"Contacto '{nombre.strip()}' agregado."}
+    return RedirectResponse(f"/clientes/{cliente_id}/cuentas?tab=contactos", status_code=302)
+
+
+@router.post("/{cliente_id}/contactos/{contacto_id}/editar")
+async def editar_contacto(
+    cliente_id: int,
+    contacto_id: int,
+    request: Request,
+    nombre: str = Form(...),
+    email: str = Form(""),
+    telefono: str = Form(""),
+    cargo: str = Form(""),
+    tipo: str = Form("adicional"),
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    contacto = db.query(models.ContactoCliente).filter(
+        models.ContactoCliente.id == contacto_id,
+        models.ContactoCliente.cliente_id == cliente_id
+    ).first()
+    if contacto:
+        if tipo in ("principal", "copia") and contacto.tipo != tipo:
+            _asegurar_tipo_unico(db, cliente_id, tipo, excluir_id=contacto_id)
+        contacto.nombre = nombre.strip()
+        contacto.email = email.strip() or None
+        contacto.telefono = telefono.strip() or None
+        contacto.cargo = cargo.strip() or None
+        contacto.tipo = tipo
+        db.commit()
+        request.session["flash"] = {"tipo": "success", "texto": "Contacto actualizado."}
+    return RedirectResponse(f"/clientes/{cliente_id}/cuentas?tab=contactos", status_code=302)
+
+
+@router.post("/{cliente_id}/contactos/{contacto_id}/eliminar")
+async def eliminar_contacto(
+    cliente_id: int,
+    contacto_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    contacto = db.query(models.ContactoCliente).filter(
+        models.ContactoCliente.id == contacto_id,
+        models.ContactoCliente.cliente_id == cliente_id
+    ).first()
+    if contacto:
+        db.delete(contacto)
+        db.commit()
+        request.session["flash"] = {"tipo": "warning", "texto": "Contacto eliminado."}
+    return RedirectResponse(f"/clientes/{cliente_id}/cuentas?tab=contactos", status_code=302)
 
 
 @router.post("/{cliente_id}/cuentas/nueva")

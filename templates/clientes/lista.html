@@ -59,7 +59,9 @@
         </thead>
         <tbody>
           {% for c in clientes %}
-          {% set dominio = c.contacto_email.split('@')[1] if c.contacto_email and '@' in c.contacto_email else '' %}
+          {% set contacto_principal = c.contactos | selectattr("tipo", "eq", "principal") | first | default(None) %}
+          {% set email_ref = contacto_principal.email if contacto_principal and contacto_principal.email else c.contacto_email %}
+          {% set dominio = email_ref.split('@')[1] if email_ref and '@' in email_ref else '' %}
           <tr class="fila-cliente">
             <td class="ps-4">
               <div class="d-flex align-items-center gap-2">
@@ -84,12 +86,20 @@
               </div>
             </td>
             <td class="align-middle"><span class="small text-muted">{{ c.rut or '—' }}</span></td>
-            <td class="align-middle"><span class="small">{{ c.contacto_nombre or '—' }}</span></td>
             <td class="align-middle">
-              {% if c.contacto_email %}
-              <a href="mailto:{{ c.contacto_email }}" class="small text-decoration-none text-muted">
-                {{ c.contacto_email }}
-              </a>
+              {% if contacto_principal %}
+              <span class="small">{{ contacto_principal.nombre }}</span>
+              {% if contacto_principal.cargo %}
+              <div class="small text-muted" style="font-size:.72rem">{{ contacto_principal.cargo }}</div>
+              {% endif %}
+              {% else %}
+              <span class="small text-muted">{{ c.contacto_nombre or '—' }}</span>
+              {% endif %}
+            </td>
+            <td class="align-middle">
+              {% set email_contacto = contacto_principal.email if contacto_principal and contacto_principal.email else c.contacto_email %}
+              {% if email_contacto %}
+              <a href="mailto:{{ email_contacto }}" class="small text-decoration-none text-muted">{{ email_contacto }}</a>
               {% else %}—{% endif %}
             </td>
             <td class="text-center align-middle">
@@ -99,10 +109,10 @@
             </td>
             <td class="align-middle">
               <a href="/clientes/{{ c.id }}/cuentas"
-                 class="btn btn-sm {{ 'btn-outline-warning' if c.cuentas | length > 0 else 'btn-outline-secondary' }}"
-                 title="Ver credenciales">
-                <i class="bi bi-key me-1"></i>{{ c.cuentas | length }}
-                cuenta{{ 's' if c.cuentas | length != 1 else '' }}
+                 class="btn btn-sm btn-outline-secondary"
+                 title="Ver contactos y credenciales">
+                <i class="bi bi-people me-1"></i>{{ c.contactos | length }}
+                <i class="bi bi-key ms-1 me-1"></i>{{ c.cuentas | length }}
               </a>
             </td>
             <td class="text-end pe-3 align-middle">

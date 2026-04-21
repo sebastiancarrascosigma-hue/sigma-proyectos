@@ -9,116 +9,359 @@
 
 {% block content %}
 
-<!-- Filtros -->
-<div class="card mb-4">
-  <div class="card-body py-3">
-    <form method="get" action="/proyectos" class="row g-2 align-items-end">
-      <div class="col-md-3">
-        <label class="form-label">Estado</label>
-        <select name="estado" class="form-select form-select-sm">
-          <option value="">Todos los estados</option>
-          {% for e in estados %}
-          <option value="{{ e }}" {{ 'selected' if filtro_estado == e else '' }}>{{ e }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Tipo</label>
-        <select name="tipo" class="form-select form-select-sm">
-          <option value="">Todos los tipos</option>
-          {% for t in tipos %}
-          <option value="{{ t }}" {{ 'selected' if filtro_tipo == t else '' }}>{{ t }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Cliente</label>
-        <select name="cliente_id" class="form-select form-select-sm">
-          <option value="">Todos los clientes</option>
-          {% for c in clientes %}
-          <option value="{{ c.id }}" {{ 'selected' if filtro_cliente == c.id|string else '' }}>{{ c.nombre }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3 d-flex gap-2">
-        <button type="submit" class="btn btn-primary btn-sm flex-fill">
-          <i class="bi bi-funnel me-1"></i>Filtrar
-        </button>
-        <a href="/proyectos" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></a>
-      </div>
-    </form>
-  </div>
-</div>
+<!-- Tab nav (admin ve "Ingresos") -->
+<ul class="nav nav-tabs mb-4" id="proyTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold active" id="tab-lista-btn"
+            data-bs-toggle="tab" data-bs-target="#tabLista" type="button" role="tab">
+      <i class="bi bi-folder2-open me-1"></i>Lista de Proyectos
+      <span class="badge bg-secondary rounded-pill ms-1" style="font-size:.7rem">{{ proyectos|length }}</span>
+    </button>
+  </li>
+  {% if current_user.rol == "admin" %}
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold" id="tab-ingresos-btn"
+            data-bs-toggle="tab" data-bs-target="#tabIngresos" type="button" role="tab">
+      <i class="bi bi-bar-chart-line me-1 text-success"></i>Ingresos por Año
+    </button>
+  </li>
+  {% endif %}
+</ul>
 
-<!-- Lista -->
-{% if proyectos %}
-<div class="row g-3">
-  {% for p in proyectos %}
-  {% set estado_class = 'activo' if p.estado == 'Activo' else 'en-espera' if p.estado == 'En Espera' else 'completado' if p.estado == 'Completado' else 'cancelado' %}
+<div class="tab-content">
 
-  <div class="col-12">
-    <a href="/proyectos/{{ p.id }}" class="text-decoration-none">
-      <div class="card" style="transition: box-shadow .18s; border-left: 4px solid {{ '#22c55e' if p.estado == 'Activo' else '#f59e0b' if p.estado == 'En Espera' else '#3b82f6' if p.estado == 'Completado' else '#94a3b8' }}">
-        <div class="card-body py-3 px-4">
-          <div class="row align-items-center">
-            <div class="col-lg-6">
-              <div class="d-flex align-items-start gap-3">
-                <div>
-                  {% if p.id in tareas_atrasadas_ids %}
-                  <span class="badge badge-atrasado mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Tarea atrasada</span>
-                  {% endif %}
-                  <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted small fw-semibold">{{ p.codigo }}</span>
-                    <span class="badge badge-{{ estado_class }}">{{ p.estado }}</span>
-                    <span class="badge" style="background:#f1f5f9; color:#475569">{{ p.tipo_proyecto }}</span>
+  <!-- ════ TAB: Lista de proyectos ════ -->
+  <div class="tab-pane fade show active" id="tabLista" role="tabpanel">
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+      <div class="card-body py-3">
+        <form method="get" action="/proyectos" class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="form-select form-select-sm">
+              <option value="">Todos los estados</option>
+              {% for e in estados %}
+              <option value="{{ e }}" {{ 'selected' if filtro_estado == e else '' }}>{{ e }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Tipo</label>
+            <select name="tipo" class="form-select form-select-sm">
+              <option value="">Todos los tipos</option>
+              {% for t in tipos %}
+              <option value="{{ t }}" {{ 'selected' if filtro_tipo == t else '' }}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Cliente</label>
+            <select name="cliente_id" class="form-select form-select-sm">
+              <option value="">Todos los clientes</option>
+              {% for c in clientes %}
+              <option value="{{ c.id }}" {{ 'selected' if filtro_cliente == c.id|string else '' }}>{{ c.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm flex-fill">
+              <i class="bi bi-funnel me-1"></i>Filtrar
+            </button>
+            <a href="/proyectos" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lista -->
+    {% if proyectos %}
+    <div class="row g-3">
+      {% for p in proyectos %}
+      {% set estado_class = 'activo' if p.estado == 'Activo' else 'en-espera' if p.estado == 'En Espera' else 'completado' if p.estado == 'Completado' else 'cancelado' %}
+      <div class="col-12">
+        <a href="/proyectos/{{ p.id }}" class="text-decoration-none">
+          <div class="card" style="transition:box-shadow .18s;border-left:4px solid {{ '#22c55e' if p.estado == 'Activo' else '#f59e0b' if p.estado == 'En Espera' else '#3b82f6' if p.estado == 'Completado' else '#94a3b8' }}">
+            <div class="card-body py-3 px-4">
+              <div class="row align-items-center">
+                <div class="col-lg-6">
+                  <div class="d-flex align-items-start gap-3">
+                    <div>
+                      {% if p.id in tareas_atrasadas_ids %}
+                      <span class="badge badge-atrasado mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Tarea atrasada</span>
+                      {% endif %}
+                      <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="text-muted small fw-semibold">{{ p.codigo }}</span>
+                        <span class="badge badge-{{ estado_class }}">{{ p.estado }}</span>
+                        <span class="badge" style="background:#f1f5f9;color:#475569">{{ p.tipo_proyecto }}</span>
+                        {% if p.valor_contrato and current_user.rol == "admin" %}
+                        {% set moneda = p.moneda_contrato or 'UF' %}
+                        <span class="badge" style="background:{{ '#f0fdf4' if moneda == 'CLP' else '#eff6ff' }};color:{{ '#166534' if moneda == 'CLP' else '#1d4ed8' }};font-size:.68rem">
+                          {% if moneda == 'CLP' %}$&nbsp;{{ "{:,.0f}".format(p.valor_contrato) }} CLP
+                          {% else %}{{ "{:,.2f}".format(p.valor_contrato) }} UF{% endif %}
+                        </span>
+                        {% endif %}
+                      </div>
+                      <div class="fw-bold text-dark mt-1" style="font-size:.95rem">{{ p.nombre }}</div>
+                      <div class="small mt-1" style="color:#3b82f6">
+                        <i class="bi bi-building me-1"></i>{{ p.cliente.nombre }}
+                      </div>
+                    </div>
                   </div>
-                  <div class="fw-bold text-dark mt-1" style="font-size:.95rem">{{ p.nombre }}</div>
-                  <div class="small mt-1" style="color:#3b82f6">
-                    <i class="bi bi-building me-1"></i>{{ p.cliente.nombre }}
+                </div>
+                <div class="col-lg-3 mt-2 mt-lg-0">
+                  {% set total = p.actividades | length %}
+                  {% set comp = p.actividades | selectattr('estado', 'eq', 'Completado') | list | length %}
+                  {% set pct = (comp / total * 100) | int if total > 0 else 0 %}
+                  <div class="small text-muted mb-1">Progreso: {{ comp }}/{{ total }} actividades</div>
+                  <div class="progress">
+                    <div class="progress-bar bg-primary" style="width:{{ pct }}%"></div>
+                  </div>
+                </div>
+                <div class="col-lg-3 mt-2 mt-lg-0 text-lg-end">
+                  <div class="small text-muted">
+                    {% if p.responsable %}<i class="bi bi-person me-1"></i>{{ p.responsable.nombre }}<br>{% endif %}
+                    {% if p.fecha_estimada_cierre %}
+                    <i class="bi bi-calendar3 me-1"></i>Cierre: {{ p.fecha_estimada_cierre.strftime('%d %b %Y') }}
+                    {% endif %}
+                  </div>
+                  <div class="small text-muted mt-1">
+                    <i class="bi bi-clock me-1"></i>{{ p.updated_at.strftime('%d %b %Y') }}
                   </div>
                 </div>
               </div>
             </div>
-            <div class="col-lg-3 mt-2 mt-lg-0">
-              {% set total = p.actividades | length %}
-              {% set comp = p.actividades | selectattr('estado', 'eq', 'Completado') | list | length %}
-              {% set pct = (comp / total * 100) | int if total > 0 else 0 %}
-              <div class="small text-muted mb-1">Progreso: {{ comp }}/{{ total }} actividades</div>
-              <div class="progress">
-                <div class="progress-bar bg-primary" style="width:{{ pct }}%"></div>
-              </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center py-6">
+        <i class="bi bi-folder-x display-4 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">No hay proyectos{% if filtro_estado or filtro_tipo or filtro_cliente %} con esos filtros{% endif %}</h5>
+        {% if not (filtro_estado or filtro_tipo or filtro_cliente) %}
+        <a href="/proyectos/nuevo" class="btn btn-primary mt-2">
+          <i class="bi bi-plus-lg me-1"></i>Crear primer proyecto
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+
+  <!-- ════ TAB: Ingresos por Año (admin only) ════ -->
+  {% if current_user.rol == "admin" %}
+  <div class="tab-pane fade" id="tabIngresos" role="tabpanel">
+
+    {% if ingresos_por_anio %}
+
+    <!-- Resumen global -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="card h-100" style="border-left:4px solid #1d4ed8">
+          <div class="card-body">
+            <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.06em;font-size:.67rem">
+              <i class="bi bi-bar-chart me-1"></i>Total Portafolio UF
             </div>
-            <div class="col-lg-3 mt-2 mt-lg-0 text-lg-end">
-              <div class="small text-muted">
-                {% if p.responsable %}<i class="bi bi-person me-1"></i>{{ p.responsable.nombre }}<br>{% endif %}
-                {% if p.fecha_estimada_cierre %}
-                  <i class="bi bi-calendar3 me-1"></i>Cierre: {{ p.fecha_estimada_cierre.strftime('%d %b %Y') }}
-                {% endif %}
-              </div>
-              <div class="small text-muted mt-1">
-                <i class="bi bi-clock me-1"></i>{{ p.updated_at.strftime('%d %b %Y') }}
-              </div>
+            <div class="fw-bold text-primary" style="font-size:1.4rem">
+              {{ "{:,.2f}".format(totales_ingresos.uf) }}
             </div>
+            <div class="small text-muted">UF</div>
           </div>
         </div>
       </div>
-    </a>
-  </div>
-  {% endfor %}
-</div>
+      <div class="col-md-4">
+        <div class="card h-100" style="border-left:4px solid #16a34a">
+          <div class="card-body">
+            <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.06em;font-size:.67rem">
+              <i class="bi bi-bar-chart me-1"></i>Total Portafolio CLP
+            </div>
+            <div class="fw-bold text-success" style="font-size:1.4rem">
+              $&nbsp;{{ "{:,.0f}".format(totales_ingresos.clp) }}
+            </div>
+            <div class="small text-muted">Pesos chilenos</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100" style="border-left:4px solid #7c3aed">
+          <div class="card-body">
+            <div class="small text-muted fw-semibold text-uppercase mb-1" style="letter-spacing:.06em;font-size:.67rem">
+              <i class="bi bi-calendar3 me-1"></i>Años con ingresos
+            </div>
+            <div class="fw-bold text-dark" style="font-size:1.4rem">
+              {{ ingresos_por_anio|length }}
+            </div>
+            <div class="small text-muted">{{ ingresos_por_anio.keys()|list|first }} – {{ ingresos_por_anio.keys()|list|last }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-{% else %}
-<div class="card">
-  <div class="card-body text-center py-6">
-    <i class="bi bi-folder-x display-4 text-muted d-block mb-3"></i>
-    <h5 class="text-muted">No hay proyectos{% if filtro_estado or filtro_tipo or filtro_cliente %} con esos filtros{% endif %}</h5>
-    {% if not (filtro_estado or filtro_tipo or filtro_cliente) %}
-    <a href="/proyectos/nuevo" class="btn btn-primary mt-2">
-      <i class="bi bi-plus-lg me-1"></i>Crear primer proyecto
-    </a>
+    <!-- Tabla resumen -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold small text-muted" style="background:#f8fafc">
+        <i class="bi bi-table me-1 text-primary"></i>Resumen por año (basado en fecha estimada de cierre)
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" style="font-size:.88rem">
+          <thead style="background:#f8fafc">
+            <tr>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Año</th>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;text-align:center">Proyectos</th>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Total UF</th>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Total CLP</th>
+              <th style="padding:10px 16px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Estados</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for anio, datos in ingresos_por_anio.items() %}
+            {% set n_activos    = datos.proyectos | selectattr('estado', 'eq', 'Activo')     | list | length %}
+            {% set n_espera     = datos.proyectos | selectattr('estado', 'eq', 'En Espera')  | list | length %}
+            {% set n_completado = datos.proyectos | selectattr('estado', 'eq', 'Completado') | list | length %}
+            <tr>
+              <td style="padding:10px 16px">
+                <a href="#anio-{{ anio }}" class="fw-bold text-decoration-none text-dark">{{ anio }}</a>
+              </td>
+              <td style="padding:10px 16px;text-align:center">
+                <span class="badge bg-secondary rounded-pill">{{ datos.proyectos|length }}</span>
+              </td>
+              <td style="padding:10px 16px;text-align:right;font-weight:600;color:#1d4ed8">
+                {% if datos.uf > 0 %}{{ "{:,.2f}".format(datos.uf) }} UF{% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td style="padding:10px 16px;text-align:right;font-weight:600;color:#16a34a">
+                {% if datos.clp > 0 %}$&nbsp;{{ "{:,.0f}".format(datos.clp) }}{% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td style="padding:10px 16px">
+                <div class="d-flex gap-1 flex-wrap">
+                  {% if n_activos    %}<span class="badge badge-activo"    style="font-size:.68rem">{{ n_activos }} Activo(s)</span>{% endif %}
+                  {% if n_espera     %}<span class="badge badge-en-espera" style="font-size:.68rem">{{ n_espera }} En Espera</span>{% endif %}
+                  {% if n_completado %}<span class="badge badge-completado" style="font-size:.68rem">{{ n_completado }} Completado(s)</span>{% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot style="background:#f8fafc">
+            <tr>
+              <td colspan="2" style="padding:10px 16px;font-weight:700">TOTAL</td>
+              <td style="padding:10px 16px;text-align:right;font-weight:700;color:#1d4ed8">
+                {% if totales_ingresos.uf > 0 %}{{ "{:,.2f}".format(totales_ingresos.uf) }} UF{% else %}—{% endif %}
+              </td>
+              <td style="padding:10px 16px;text-align:right;font-weight:700;color:#16a34a">
+                {% if totales_ingresos.clp > 0 %}$&nbsp;{{ "{:,.0f}".format(totales_ingresos.clp) }}{% else %}—{% endif %}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Detalle por año -->
+    {% for anio, datos in ingresos_por_anio.items() %}
+    <div class="card mb-3" id="anio-{{ anio }}">
+      <div class="card-header d-flex justify-content-between align-items-center" style="background:#f8fafc;cursor:pointer"
+           data-bs-toggle="collapse" data-bs-target="#collapse-{{ anio }}">
+        <div class="fw-bold"><i class="bi bi-calendar3 me-2 text-primary"></i>{{ anio }}</div>
+        <div class="d-flex align-items-center gap-2">
+          {% if datos.uf > 0 %}
+          <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.78rem">{{ "{:,.2f}".format(datos.uf) }} UF</span>
+          {% endif %}
+          {% if datos.clp > 0 %}
+          <span class="badge" style="background:#f0fdf4;color:#166534;font-size:.78rem">$&nbsp;{{ "{:,.0f}".format(datos.clp) }} CLP</span>
+          {% endif %}
+          <i class="bi bi-chevron-down text-muted" style="font-size:.8rem"></i>
+        </div>
+      </div>
+      <div class="collapse show" id="collapse-{{ anio }}">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0" style="font-size:.84rem">
+            <thead style="background:#f8fafc">
+              <tr>
+                <th style="padding:6px 14px;color:#94a3b8;font-size:.68rem;text-transform:uppercase">Código</th>
+                <th style="padding:6px 14px;color:#94a3b8;font-size:.68rem;text-transform:uppercase">Proyecto</th>
+                <th style="padding:6px 14px;color:#94a3b8;font-size:.68rem;text-transform:uppercase">Cliente</th>
+                <th style="padding:6px 14px;color:#94a3b8;font-size:.68rem;text-transform:uppercase">Estado</th>
+                <th style="padding:6px 14px;color:#94a3b8;font-size:.68rem;text-transform:uppercase">Cierre est.</th>
+                <th style="padding:6px 14px;color:#94a3b8;font-size:.68rem;text-transform:uppercase;text-align:right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in datos.proyectos %}
+              {% set estado_slug = p.estado | lower | replace(' ', '-') %}
+              <tr>
+                <td style="padding:7px 14px">
+                  <a href="/proyectos/{{ p.id }}" class="fw-semibold text-primary text-decoration-none">{{ p.codigo }}</a>
+                </td>
+                <td style="padding:7px 14px">
+                  <div class="text-dark" style="max-width:280px">{{ p.nombre }}</div>
+                </td>
+                <td style="padding:7px 14px" class="text-muted">{{ p.cliente.nombre }}</td>
+                <td style="padding:7px 14px">
+                  <span class="badge badge-{{ estado_slug }}">{{ p.estado }}</span>
+                </td>
+                <td style="padding:7px 14px" class="text-muted">
+                  {{ p.fecha_estimada_cierre.strftime('%b %Y') if p.fecha_estimada_cierre else '—' }}
+                </td>
+                <td style="padding:7px 14px;text-align:right;font-weight:600">
+                  {% set moneda = p.moneda_contrato or 'UF' %}
+                  {% if moneda == 'CLP' %}
+                  <span style="color:#16a34a">$&nbsp;{{ "{:,.0f}".format(p.valor_contrato) }}</span>
+                  <span class="badge bg-success-subtle text-success ms-1" style="font-size:.65rem">CLP</span>
+                  {% else %}
+                  <span style="color:#1d4ed8">{{ "{:,.2f}".format(p.valor_contrato) }}</span>
+                  <span class="badge bg-primary-subtle text-primary ms-1" style="font-size:.65rem">UF</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-bar-chart display-4 d-block mb-3" style="opacity:.3"></i>
+        <h5>Sin datos de ingresos</h5>
+        <p class="small">Agrega el valor de contrato (UF o CLP) a los proyectos para ver los ingresos estimados por año.</p>
+        <a href="/proyectos/nuevo" class="btn btn-primary mt-1">
+          <i class="bi bi-plus-lg me-1"></i>Crear proyecto con valor
+        </a>
+      </div>
+    </div>
     {% endif %}
-  </div>
-</div>
-{% endif %}
 
+  </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Persistir tab activo usando URL hash
+const tabBtns = document.querySelectorAll('#proyTabs button[data-bs-toggle="tab"]');
+tabBtns.forEach(btn => {
+  btn.addEventListener('shown.bs.tab', e => {
+    const id = e.target.dataset.bsTarget;
+    history.replaceState(null, '', id === '#tabIngresos' ? '#ingresos' : '#lista');
+  });
+});
+// Restaurar al cargar
+if (window.location.hash === '#ingresos') {
+  const btn = document.getElementById('tab-ingresos-btn');
+  if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+}
+</script>
 {% endblock %}

@@ -4,6 +4,7 @@
   <a href="/minutas" class="text-decoration-none text-muted small me-2"><i class="bi bi-arrow-left"></i> Minutas</a>
   {{ minuta.fecha.strftime('%d/%m/%Y') }} · {{ minuta.cliente.nombre }}
 {% endblock %}
+
 {% block topbar_actions %}
   {% if current_user.rol == "admin" or minuta.created_by == current_user.id %}
   <a href="/minutas/{{ minuta.id }}/editar" class="btn btn-outline-secondary btn-sm">
@@ -11,32 +12,36 @@
   </a>
   {% endif %}
 
-  <!-- Notificación interna al equipo Sigma -->
-  {% if not minuta.notificacion_enviada %}
-  <form method="post" action="/minutas/{{ minuta.id }}/notificar" class="d-inline">
-    <button type="submit" class="btn btn-warning btn-sm fw-semibold"
-            onclick="return confirm('¿Notificar al equipo Sigma para que revisen esta minuta?')">
-      <i class="bi bi-people me-1"></i>Notificar equipo
-    </button>
-  </form>
-  {% else %}
-  <span class="badge bg-warning-subtle text-warning px-3 py-2">
-    <i class="bi bi-people me-1"></i>Equipo notificado
-  </span>
-  {% endif %}
+  {% if email_configurado %}
+    <!-- Notificación interna al equipo -->
+    <form method="post" action="/minutas/{{ minuta.id }}/notificar" class="d-inline">
+      <button type="submit" class="btn btn-warning btn-sm fw-semibold"
+              onclick="return confirm('¿{% if minuta.notificacion_enviada %}Re-notificar{% else %}Notificar{% endif %} al equipo Sigma?')">
+        <i class="bi bi-people me-1"></i>
+        {% if minuta.notificacion_enviada %}Re-notificar equipo{% else %}Notificar equipo{% endif %}
+      </button>
+    </form>
 
-  <!-- Envío al cliente con PDF -->
-  {% if not minuta.email_enviado and minuta.participantes %}
-  <form method="post" action="/minutas/{{ minuta.id }}/enviar" class="d-inline">
-    <button type="submit" class="btn btn-primary btn-sm fw-semibold"
-            onclick="return confirm('¿Enviar la minuta con PDF adjunto a {{ minuta.participantes|selectattr("email")|list|length }} participante(s)?')">
-      <i class="bi bi-send me-1"></i>Enviar al cliente
-    </button>
-  </form>
-  {% elif minuta.email_enviado %}
-  <span class="badge bg-success-subtle text-success px-3 py-2">
-    <i class="bi bi-check-circle me-1"></i>Enviada al cliente
-  </span>
+    <!-- Envío al cliente con PDF -->
+    {% set destinatarios_envio = minuta.participantes | selectattr("email") | selectattr("enviar_minuta", "ne", false) | list %}
+    {% if destinatarios_envio %}
+    <form method="post" action="/minutas/{{ minuta.id }}/enviar" class="d-inline">
+      <button type="submit" class="btn btn-primary btn-sm fw-semibold"
+              onclick="return confirm('¿{% if minuta.email_enviado %}Re-enviar{% else %}Enviar{% endif %} la minuta a {{ destinatarios_envio|length }} destinatario(s)?')">
+        <i class="bi bi-send me-1"></i>
+        {% if minuta.email_enviado %}Re-enviar al cliente{% else %}Enviar al cliente{% endif %}
+        <span class="badge bg-white text-primary ms-1" style="font-size:.72rem">{{ destinatarios_envio|length }}</span>
+      </button>
+    </form>
+    {% else %}
+    <span class="badge bg-secondary-subtle text-secondary px-3 py-2">
+      <i class="bi bi-envelope-slash me-1"></i>Sin destinatarios
+    </span>
+    {% endif %}
+  {% else %}
+    <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2" title="Configura EMAIL_SENDER en los secrets">
+      <i class="bi bi-exclamation-triangle me-1"></i>Email no configurado
+    </span>
   {% endif %}
 
   {% if current_user.rol == "admin" %}
@@ -49,10 +54,10 @@
 {% block content %}
 <div class="row g-4">
 
-  <!-- Columna principal -->
+  <!-- ── Columna principal ── -->
   <div class="col-lg-8">
 
-    <!-- Encabezado -->
+    <!-- Encabezado de la minuta -->
     <div class="card mb-4" style="border-left:4px solid #3b82f6">
       <div class="card-body">
         <h5 class="fw-bold text-dark mb-2">{{ minuta.titulo }}</h5>
@@ -60,6 +65,12 @@
           <span><i class="bi bi-building me-1"></i><strong>{{ minuta.cliente.nombre }}</strong></span>
           <span><i class="bi bi-calendar-event me-1"></i>{{ minuta.fecha.strftime('%d de %B de %Y') }}</span>
           <span><i class="bi bi-person me-1"></i>Elaboró: {{ minuta.creador.nombre if minuta.creador else '—' }}</span>
+          {% if minuta.email_enviado %}
+          <span class="text-success"><i class="bi bi-check-circle me-1"></i>Enviada al cliente</span>
+          {% endif %}
+          {% if minuta.notificacion_enviada %}
+          <span class="text-warning"><i class="bi bi-people me-1"></i>Equipo notificado</span>
+          {% endif %}
         </div>
         {% if minuta.resumen %}
         <hr class="my-3">
@@ -68,9 +79,12 @@
       </div>
     </div>
 
-    <!-- Temas -->
+    <!-- Tabla de temas -->
     {% if minuta.temas %}
-    <div class="card mb-3">
+    <div class="card mb-4">
+      <div class="card-header fw-semibold small text-muted d-flex align-items-center gap-2" style="background:#f8fafc">
+        <i class="bi bi-folder2-open text-primary"></i> Puntos tratados
+      </div>
       <div class="table-responsive">
         <table class="table mb-0" style="font-size:.85rem">
           <thead style="background:#f8fafc">
@@ -93,44 +107,104 @@
             </tr>
           </thead>
           <tbody>
-            {% for tema in minuta.temas %}
-            <tr style="border-bottom:1px solid #f1f5f9;vertical-align:top">
-              <td style="padding:12px 14px">
-                <a href="/proyectos/{{ tema.proyecto.id }}" class="fw-semibold text-primary text-decoration-none d-block">
-                  {{ tema.proyecto.codigo }}
-                </a>
-                <span class="text-muted" style="font-size:.75rem">{{ tema.proyecto.nombre[:55] }}{% if tema.proyecto.nombre|length > 55 %}…{% endif %}</span>
-                <div class="mt-1">
-                  <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.65rem">{{ tema.proyecto.tipo_proyecto }}</span>
+            {% for proyecto_id, puntos in minuta.temas | groupby("proyecto_id") %}
+              {% for punto in puntos %}
+              <tr style="vertical-align:top;{% if not loop.last %}border-bottom:1px solid #f8fafc{% else %}border-bottom:1px solid #f1f5f9{% endif %}">
+                {% if loop.first %}
+                <td style="padding:12px 14px{% if puntos|length > 1 %};border-right:3px solid #eff6ff{% endif %}" rowspan="{{ puntos|length }}">
+                  <a href="/proyectos/{{ punto.proyecto.id }}" class="fw-semibold text-primary text-decoration-none d-block">
+                    {{ punto.proyecto.codigo }}
+                  </a>
+                  <span class="text-muted" style="font-size:.75rem">{{ punto.proyecto.nombre[:55] }}{% if punto.proyecto.nombre|length > 55 %}…{% endif %}</span>
+                  <div class="mt-1">
+                    <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.65rem">{{ punto.proyecto.tipo_proyecto }}</span>
+                  </div>
+                  {% if puntos|length > 1 %}
+                  <div class="mt-1">
+                    <span class="badge bg-light text-secondary border" style="font-size:.62rem">{{ puntos|length }} puntos</span>
+                  </div>
+                  {% endif %}
+                </td>
+                {% endif %}
+                <td style="padding:12px 14px"><div style="white-space:pre-wrap;color:#374151">{{ punto.lo_tratado }}</div></td>
+                <td style="padding:12px 14px">
+                  {% if punto.acuerdos %}
+                  <div class="border-start border-success ps-2" style="white-space:pre-wrap;color:#374151">{{ punto.acuerdos }}</div>
+                  {% else %}<span class="text-muted" style="font-size:.78rem">—</span>{% endif %}
+                </td>
+                <td style="padding:12px 14px">
+                  {% if punto.responsable %}
+                  <div class="d-flex align-items-center gap-1">
+                    <div class="user-avatar" style="width:26px;height:26px;font-size:.7rem;flex-shrink:0">{{ punto.responsable.nombre[0]|upper }}</div>
+                    <span class="small">{{ punto.responsable.nombre.split()[0] }}</span>
+                  </div>
+                  {% else %}<span class="text-muted" style="font-size:.78rem">—</span>{% endif %}
+                </td>
+                <td style="padding:12px 14px">
+                  {% if punto.fecha_estimada_respuesta %}
+                  <span class="badge" style="background:#fef3c7;color:#92400e;font-size:.75rem">
+                    {{ punto.fecha_estimada_respuesta.strftime('%d/%m/%Y') }}
+                  </span>
+                  {% else %}<span class="text-muted" style="font-size:.78rem">—</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabla de participantes -->
+    <div class="card">
+      <div class="card-header fw-semibold small d-flex justify-content-between align-items-center" style="background:#f8fafc">
+        <span class="text-muted">
+          <i class="bi bi-people text-primary me-1"></i>Participantes
+          <span class="badge bg-secondary ms-1">{{ minuta.participantes|length }}</span>
+        </span>
+        {% set n_reciben = minuta.participantes | selectattr("email") | selectattr("enviar_minuta", "ne", false) | list | length %}
+        {% if n_reciben > 0 %}
+        <span class="small text-muted fw-normal">
+          <i class="bi bi-envelope-check text-primary me-1"></i>{{ n_reciben }} reciben la minuta
+        </span>
+        {% endif %}
+      </div>
+      {% if minuta.participantes %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0" style="font-size:.84rem">
+          <thead style="background:#f8fafc">
+            <tr>
+              <th style="padding:8px 14px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Nombre</th>
+              <th style="padding:8px 14px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Cargo</th>
+              <th style="padding:8px 14px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Empresa</th>
+              <th style="padding:8px 14px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">Email</th>
+              <th style="padding:8px 14px;color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;text-align:center">Recibe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in minuta.participantes %}
+            <tr>
+              <td style="padding:8px 14px">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="user-avatar" style="width:28px;height:28px;font-size:.72rem;flex-shrink:0">{{ p.nombre[0]|upper }}</div>
+                  <span class="fw-semibold text-dark">{{ p.nombre }}</span>
                 </div>
               </td>
-              <td style="padding:12px 14px">
-                <div style="white-space:pre-wrap;color:#374151">{{ tema.lo_tratado }}</div>
+              <td style="padding:8px 14px" class="text-muted">{{ p.cargo or '—' }}</td>
+              <td style="padding:8px 14px" class="text-muted">{{ p.empresa or '—' }}</td>
+              <td style="padding:8px 14px">
+                {% if p.email %}
+                <a href="mailto:{{ p.email }}" class="text-decoration-none" style="color:#3b82f6;font-size:.82rem">{{ p.email }}</a>
+                {% else %}<span class="text-muted">—</span>{% endif %}
               </td>
-              <td style="padding:12px 14px">
-                {% if tema.acuerdos %}
-                <div class="border-start border-success ps-2" style="white-space:pre-wrap;color:#374151">{{ tema.acuerdos }}</div>
+              <td style="padding:8px 14px;text-align:center">
+                {% if not p.email %}
+                <span class="text-muted small">sin email</span>
+                {% elif p.enviar_minuta != false %}
+                <i class="bi bi-envelope-check text-primary" title="Recibirá la minuta"></i>
                 {% else %}
-                <span class="text-muted" style="font-size:.78rem">—</span>
-                {% endif %}
-              </td>
-              <td style="padding:12px 14px">
-                {% if tema.responsable %}
-                <div class="d-flex align-items-center gap-1">
-                  <div class="user-avatar" style="width:26px;height:26px;font-size:.7rem;flex-shrink:0">{{ tema.responsable.nombre[0]|upper }}</div>
-                  <span class="small">{{ tema.responsable.nombre.split()[0] }}</span>
-                </div>
-                {% else %}
-                <span class="text-muted" style="font-size:.78rem">—</span>
-                {% endif %}
-              </td>
-              <td style="padding:12px 14px">
-                {% if tema.fecha_estimada_respuesta %}
-                <span class="badge" style="background:#fef3c7;color:#92400e;font-size:.75rem">
-                  {{ tema.fecha_estimada_respuesta.strftime('%d/%m/%Y') }}
-                </span>
-                {% else %}
-                <span class="text-muted" style="font-size:.78rem">—</span>
+                <i class="bi bi-envelope-slash text-muted" title="No recibirá la minuta"></i>
                 {% endif %}
               </td>
             </tr>
@@ -138,32 +212,53 @@
           </tbody>
         </table>
       </div>
+      {% else %}
+      <div class="card-body text-center py-4 text-muted small">Sin participantes registrados</div>
+      {% endif %}
     </div>
-    {% endif %}
+
   </div>
 
-  <!-- Columna lateral: participantes -->
+  <!-- ── Columna lateral: historial de envíos ── -->
   <div class="col-lg-4">
     <div class="card sticky-top" style="top:80px">
-      <div class="card-header fw-bold text-dark">
-        <i class="bi bi-people me-2 text-primary"></i>Participantes
-        <span class="badge bg-secondary ms-1">{{ minuta.participantes|length }}</span>
+      <div class="card-header fw-bold text-dark small">
+        <i class="bi bi-clock-history me-2 text-primary"></i>Historial de Envíos
       </div>
       <div class="card-body p-0">
-        {% if minuta.participantes %}
+        {% if minuta.envios %}
         <ul class="list-group list-group-flush">
-          {% for p in minuta.participantes %}
+          {% for e in minuta.envios %}
           <li class="list-group-item px-3 py-2">
-            <div class="d-flex align-items-center gap-2">
-              <div class="user-avatar" style="width:32px;height:32px;font-size:.8rem;flex-shrink:0">
-                {{ p.nombre[0]|upper }}
-              </div>
-              <div style="min-width:0">
-                <div class="fw-semibold small text-dark text-truncate">{{ p.nombre }}</div>
-                {% if p.empresa %}<div class="small text-muted">{{ p.empresa }}</div>{% endif %}
-                {% if p.email %}
-                <div class="small" style="color:#3b82f6">
-                  <i class="bi bi-envelope me-1"></i>{{ p.email }}
+            <div class="d-flex align-items-start gap-2">
+              {% if e.tipo == 'cliente' %}
+              <i class="bi bi-send mt-1 {{ 'text-primary' if e.exitoso else 'text-danger' }}" style="font-size:.9rem"></i>
+              {% else %}
+              <i class="bi bi-people mt-1 {{ 'text-warning' if e.exitoso else 'text-danger' }}" style="font-size:.9rem"></i>
+              {% endif %}
+              <div style="min-width:0;flex:1">
+                <div class="fw-semibold" style="font-size:.82rem">
+                  {% if e.tipo == 'cliente' %}Enviado al cliente{% else %}Notificación interna{% endif %}
+                  {% if not e.exitoso %}
+                  <span class="badge bg-danger-subtle text-danger ms-1" style="font-size:.65rem">Error</span>
+                  {% endif %}
+                </div>
+                <div class="text-muted" style="font-size:.75rem">
+                  <i class="bi bi-calendar2 me-1"></i>{{ e.enviado_at.strftime('%d/%m/%Y %H:%M') }}
+                </div>
+                {% if e.usuario %}
+                <div class="text-muted" style="font-size:.75rem">
+                  <i class="bi bi-person me-1"></i>{{ e.usuario.nombre.split()[0] }}
+                </div>
+                {% endif %}
+                {% if e.num_destinatarios %}
+                <div class="text-muted" style="font-size:.75rem">
+                  <i class="bi bi-envelope me-1"></i>{{ e.num_destinatarios }} destinatario(s)
+                </div>
+                {% endif %}
+                {% if e.destinatarios %}
+                <div class="text-muted text-truncate" style="font-size:.7rem;max-width:200px" title="{{ e.destinatarios }}">
+                  {{ e.destinatarios }}
                 </div>
                 {% endif %}
               </div>
@@ -172,14 +267,17 @@
           {% endfor %}
         </ul>
         {% else %}
-        <div class="text-center py-4 text-muted small">Sin participantes registrados</div>
+        <div class="text-center py-5 text-muted small">
+          <i class="bi bi-clock-history d-block mb-2" style="font-size:1.8rem;opacity:.4"></i>
+          Sin envíos registrados
+        </div>
         {% endif %}
       </div>
       {% if not email_configurado %}
       <div class="card-footer bg-warning-subtle border-0">
         <div class="small text-warning-emphasis">
           <i class="bi bi-exclamation-triangle me-1"></i>
-          Email no configurado. Agrega <code>EMAIL_SENDER</code> y <code>EMAIL_PASSWORD</code> en los secrets de HF Spaces.
+          Agrega <code>EMAIL_SENDER</code> y <code>EMAIL_PASSWORD</code> en los secrets para habilitar envíos.
         </div>
       </div>
       {% endif %}
@@ -200,20 +298,15 @@
       <form method="post" action="/minutas/{{ minuta.id }}/eliminar">
         <div class="modal-body py-3">
           <p class="mb-3 small text-muted">Esta acción no se puede deshacer.</p>
-
           {% if comentarios_minuta > 0 %}
           <div class="form-check p-3 border rounded mb-2" style="background:#fff8f0">
             <input class="form-check-input" type="checkbox" name="eliminar_comentarios"
                    value="si" id="chkEliminarComentarios">
             <label class="form-check-label small" for="chkEliminarComentarios">
               <strong>Eliminar también los {{ comentarios_minuta }} comentario(s)</strong>
-              registrados en las bitácoras de los proyectos al crear esta minuta.
+              registrados en las bitácoras de los proyectos.
             </label>
           </div>
-          <p class="small text-muted mb-0">
-            <i class="bi bi-info-circle me-1"></i>
-            Si no marcas esta opción, los comentarios en bitácora quedan intactos.
-          </p>
           {% else %}
           <input type="hidden" name="eliminar_comentarios" value="no">
           <p class="small text-muted mb-0">Esta minuta no tiene comentarios asociados en bitácoras.</p>

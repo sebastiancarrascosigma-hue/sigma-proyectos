@@ -38,9 +38,7 @@ async def lista(
     clientes = db.query(models.Cliente).filter(models.Cliente.activo == True).order_by(models.Cliente.nombre).all()
     hoy = datetime.utcnow()
 
-    # Marcar proyectos con alarmas
     from datetime import timedelta
-    en_7 = hoy + timedelta(days=7)
     proyectos_con_alarma = set()
     tareas_atrasadas_ids = set()
     for act in db.query(models.Actividad).filter(
@@ -50,6 +48,33 @@ async def lista(
         if act.fecha_limite and act.fecha_limite < hoy:
             proyectos_con_alarma.add(act.proyecto_id)
             tareas_atrasadas_ids.add(act.proyecto_id)
+
+    # Ingresos por año (solo admin)
+    ingresos_por_anio = {}
+    totales_ingresos = {"uf": 0.0, "clp": 0.0}
+    if user.rol == "admin":
+        from collections import defaultdict
+        raw = defaultdict(lambda: {"uf": 0.0, "clp": 0.0, "proyectos": []})
+        todos_con_valor = (
+            db.query(models.Proyecto)
+            .filter(models.Proyecto.valor_contrato != None, models.Proyecto.valor_contrato > 0)
+            .order_by(models.Proyecto.fecha_estimada_cierre)
+            .all()
+        )
+        for p in todos_con_valor:
+            fecha_ref = p.fecha_estimada_cierre or p.fecha_inicio
+            if not fecha_ref:
+                continue
+            anio = fecha_ref.year
+            moneda = p.moneda_contrato or "UF"
+            if moneda == "CLP":
+                raw[anio]["clp"] += p.valor_contrato
+                totales_ingresos["clp"] += p.valor_contrato
+            else:
+                raw[anio]["uf"] += p.valor_contrato
+                totales_ingresos["uf"] += p.valor_contrato
+            raw[anio]["proyectos"].append(p)
+        ingresos_por_anio = dict(sorted(raw.items()))
 
     return templates.TemplateResponse(request, "proyectos/lista.html", {
         "current_user": user,
@@ -62,6 +87,8 @@ async def lista(
         "filtro_cliente": cliente_id,
         "proyectos_con_alarma": proyectos_con_alarma,
         "tareas_atrasadas_ids": tareas_atrasadas_ids,
+        "ingresos_por_anio": ingresos_por_anio,
+        "totales_ingresos": totales_ingresos,
         "flash": request.session.pop("flash", None),
         "hoy": hoy,
     })
@@ -90,6 +117,7 @@ async def nuevo_submit(
     orden_compra: str = Form(""),
     descripcion: str = Form(""),
     valor_contrato: str = Form(""),
+    moneda_contrato: str = Form("UF"),
     fecha_inicio: str = Form(...),
     fecha_estimada_cierre: str = Form(""),
     responsable_id: int = Form(...),
@@ -101,7 +129,6 @@ async def nuevo_submit(
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    # Auto-generar código
     ultimo = db.query(models.Proyecto).count()
     anio = datetime.utcnow().year
     codigo = f"SE-{anio}-{str(ultimo + 1).zfill(3)}"
@@ -114,6 +141,7 @@ async def nuevo_submit(
         descripcion=descripcion.strip(),
         orden_compra=orden_compra.strip(),
         valor_contrato=float(valor_contrato) if valor_contrato.strip() else None,
+        moneda_contrato=moneda_contrato if moneda_contrato in ("UF", "CLP") else "UF",
         fecha_inicio=datetime.strptime(fecha_inicio, "%Y-%m-%d"),
         fecha_estimada_cierre=datetime.strptime(fecha_estimada_cierre, "%Y-%m-%d") if fecha_estimada_cierre else None,
         responsable_id=responsable_id,
@@ -198,6 +226,7 @@ async def editar_submit(
     orden_compra: str = Form(""),
     descripcion: str = Form(""),
     valor_contrato: str = Form(""),
+    moneda_contrato: str = Form("UF"),
     fecha_inicio: str = Form(...),
     fecha_estimada_cierre: str = Form(""),
     responsable_id: int = Form(...),
@@ -219,6 +248,7 @@ async def editar_submit(
     proyecto.orden_compra = orden_compra.strip()
     proyecto.descripcion = descripcion.strip()
     proyecto.valor_contrato = float(valor_contrato) if valor_contrato.strip() else None
+    proyecto.moneda_contrato = moneda_contrato if moneda_contrato in ("UF", "CLP") else "UF"
     proyecto.fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
     proyecto.fecha_estimada_cierre = datetime.strptime(fecha_estimada_cierre, "%Y-%m-%d") if fecha_estimada_cierre else None
     proyecto.responsable_id = responsable_id
