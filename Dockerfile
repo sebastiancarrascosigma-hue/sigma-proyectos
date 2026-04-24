@@ -2,7 +2,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Dependencias del sistema para weasyprint (PDF)
 RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
@@ -19,6 +18,8 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-EXPOSE 7860
+RUN mkdir -p /data/db
 
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+EXPOSE ${PORT:-8000}
+
+CMD ["sh", "-c", "python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    volumes:
+      - ${ONEDRIVE_DB_DIR:-./data}:/data/db
+    environment:
+      - DATABASE_URL=sqlite:////data/db/sigma_proyectos.db
+      - JWT_SECRET=${JWT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CUENTAS_SECRET_KEY=${CUENTAS_SECRET_KEY}
+      - SYNC_API_KEY=${SYNC_API_KEY}
+      - PORT=${PORT:-8000}

@@ -5,6 +5,7 @@ jinja2
 python-multipart
 bcrypt
 python-jose[cryptography]
+cryptography
 itsdangerous
 aiofiles
 psycopg2-binary

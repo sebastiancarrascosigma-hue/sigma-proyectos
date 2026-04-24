@@ -21,3 +21,6 @@ __pycache__/
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Docker
+docker-compose.override.yml
