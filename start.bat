@@ -103,7 +103,7 @@ if defined ZT_IP (
     echo        Ver: scripts\unirse_a_sigma.txt
     echo.
 )
-echo    Servidor publico ^(HuggingFace^):
+echo    Visor HuggingFace ^(sistema separado, solo lectura^):
 echo    https://sebas1989-sigma-proyectos.hf.space
 echo.
 echo    Presiona Ctrl+C para detener el servidor
