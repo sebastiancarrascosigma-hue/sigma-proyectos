@@ -233,6 +233,62 @@ def step_hf_secrets(env):
         print("  [!] Algunos secretos fallaron. Verifica el token y el nombre del Space.")
 
 
+def step_zerotier(env):
+    banner("5/5  Red privada ZeroTier")
+
+    zt_id = env.get("ZEROTIER_NETWORK_ID", "")
+
+    # Detectar si ZeroTier esta instalado
+    zt_installed = False
+    try:
+        result = subprocess.run(["zerotier-cli", "info"], capture_output=True, text=True)
+        zt_installed = result.returncode == 0
+    except FileNotFoundError:
+        pass
+
+    if not zt_installed:
+        print("  ZeroTier no esta instalado en este equipo.")
+        print("")
+        print("  PASO 1: Crea la red de Sigma (solo una vez, el admin):")
+        print("    a) Ve a https://my.zerotier.com y crea una cuenta gratuita")
+        print("    b) Haz clic en 'Create A Network'")
+        print("    c) Copia el Network ID (16 caracteres, ej: a09acf0233d1e175)")
+        print("    d) En la red: Access Control = Certificate (Private)")
+        print("    e) Guarda el Network ID en .env como ZEROTIER_NETWORK_ID=...")
+        print("")
+        print("  PASO 2: Instala ZeroTier en el PC servidor:")
+        print("    https://www.zerotier.com/download/")
+        print("")
+        print("  PASO 3: Une el PC a la red:")
+        print("    zerotier-cli join <NETWORK_ID>")
+        print("")
+        print("  PASO 4: Aprueba el dispositivo en https://my.zerotier.com")
+        print("")
+        print("  Para cada nuevo integrante del equipo, comparte el archivo:")
+        print("    scripts\\unirse_a_sigma.txt")
+    else:
+        print("  [ok] ZeroTier esta instalado.")
+        # Mostrar redes activas
+        result = subprocess.run(["zerotier-cli", "listnetworks"], capture_output=True, text=True)
+        lines = [l for l in result.stdout.strip().splitlines() if "OK" in l]
+        if lines:
+            print("  Redes activas:")
+            for l in lines:
+                parts = l.split()
+                if len(parts) >= 9:
+                    net_id = parts[2] if len(parts) > 2 else "?"
+                    ip = parts[8].split("/")[0] if len(parts) > 8 else "?"
+                    print("    - Red: " + net_id + "  IP: " + ip)
+        elif zt_id:
+            print("  Uniendo a la red " + zt_id + "...")
+            subprocess.run(["zerotier-cli", "join", zt_id])
+            print("  [ok] Solicitud enviada. Aprueba el dispositivo en my.zerotier.com")
+        else:
+            print("  Sin redes configuradas. Agrega ZEROTIER_NETWORK_ID en .env y")
+            print("  vuelve a ejecutar setup.py, o corre manualmente:")
+            print("    zerotier-cli join <NETWORK_ID>")
+
+
 # main
 
 def main():
@@ -248,20 +304,17 @@ def main():
     env = step_onedrive(env)
     step_write_env(env)
     step_hf_secrets(env)
+    step_zerotier(env)
 
     print("")
     print("="*60)
     print("  Setup completado.")
     print("")
-    print("  Para iniciar el servidor local:")
-    print("    - Doble clic en start.bat")
-    print("    - O desde terminal: docker compose up")
-    print("")
-    print("  Para acceso remoto privado (recomendado: Tailscale):")
-    print("    1. Instala Tailscale en cada PC: https://tailscale.com/download")
-    print("    2. Inicia sesion con la cuenta de Sigma")
-    print("    3. En el PC servidor, ejecuta start.bat")
-    print("    4. Los demas acceden via: http://<IP-Tailscale>:8000")
+    print("  Siguientes pasos:")
+    print("    1. Completa la configuracion de ZeroTier (instrucciones arriba)")
+    print("    2. Doble clic en start.bat para iniciar el servidor")
+    print("    3. Comparte la URL ZeroTier con tu equipo")
+    print("    4. Cada nuevo integrante ejecuta scripts\\unirse_a_sigma.txt")
     print("="*60)
     print("")
 

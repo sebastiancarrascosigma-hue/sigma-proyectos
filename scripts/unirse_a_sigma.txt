@@ -1,0 +1,57 @@
+============================================================
+  Sigma Proyectos -- Acceso al sistema (nuevos usuarios)
+============================================================
+
+Este documento explica como conectarte al sistema interno
+de Sigma Proyectos desde tu PC.
+
+------------------------------------------------------------
+PASO 1: Instalar ZeroTier
+------------------------------------------------------------
+1. Ve a https://www.zerotier.com/download/
+2. Descarga e instala "ZeroTier One" para Windows
+3. Una vez instalado, aparece un icono en la barra de tareas
+
+------------------------------------------------------------
+PASO 2: Unirte a la red de Sigma
+------------------------------------------------------------
+1. Abre el simbolo del sistema (cmd) como administrador
+2. Escribe el siguiente comando (reemplaza XXXXXXXXXXXXXXXX
+   con el ID de red que te entrego el administrador):
+
+   zerotier-cli join XXXXXXXXXXXXXXXX
+
+3. Avisa al administrador para que apruebe tu dispositivo
+   en el panel de ZeroTier
+
+------------------------------------------------------------
+PASO 3: Verificar conexion
+------------------------------------------------------------
+Una vez aprobado, ejecuta:
+
+   zerotier-cli listnetworks
+
+Deberias ver una linea con "OK" y una IP del tipo 10.x.x.x
+Esa es tu IP en la red privada de Sigma.
+
+------------------------------------------------------------
+PASO 4: Acceder al sistema
+------------------------------------------------------------
+Abre el navegador y ve a:
+
+   http://<IP-del-servidor>:8000
+
+(El administrador te dira la IP del servidor ZeroTier)
+
+Inicia sesion con tu usuario y contrasena de Sigma Proyectos.
+
+------------------------------------------------------------
+NOTAS
+------------------------------------------------------------
+- ZeroTier debe estar corriendo (icono en barra de tareas)
+  para que puedas acceder al sistema
+- El servidor debe estar encendido (alguien debe haber
+  ejecutado start.bat en el PC servidor)
+- Si tienes problemas, contacta al administrador del sistema
+
+============================================================
